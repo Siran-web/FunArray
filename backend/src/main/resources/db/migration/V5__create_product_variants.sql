@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS product_variants (
+    id VARCHAR(36) PRIMARY KEY,
+    product_id VARCHAR(36) NOT NULL,
+    sku VARCHAR(100) NOT NULL UNIQUE,
+    color VARCHAR(100),
+    material VARCHAR(100),
+    price DECIMAL(12, 2) NOT NULL,
+    stock_quantity INT NOT NULL DEFAULT 0,
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
