@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  /* Primary Brand Palette (Warm Walnut & Cream) */
+  --primary: #8B5E3C;
+  --primary-dark: #634027;
+  --primary-light: #F3E8DE;
+
+  /* Surfaces & Background */
+  --background: #FAF9F7;
+  --surface: #FFFFFF;
+  --surface-secondary: #F4F2EF;
+
+  /* Typography Colors */
+  --text-primary: #24211E;
+  --text-secondary: #6F6A64;
+  --text-muted: #9B958E;
+
+  /* Dividers & Borders */
+  --border: #E5E0DA;
+
+  /* System States */
+  --success: #2F7D50;
+  --warning: #C78A24;
+  --error: #C84B4B;
+  --info: #477DA8;
+
+  /* AR Color Codes */
+  --ar-selection: #8B5E3C;
+  --ar-bounding: #FFFFFF;
+  --ar-handle: #D49A6A;
+  --ar-surface: #7BAE8A;
+
+  /* Elevation Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
+
+  /* Border Radii */
+  --radius-sm: 8px;
+  --radius-input: 10px;
+  --radius-card: 12px;
+  --radius-large-card: 16px;
+  --radius-modal: 20px;
+  --radius-pill: 9999px;
+}
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border: var(--border);
+
+  --color-status-success: var(--success);
+  --color-status-warning: var(--warning);
+  --color-status-error: var(--error);
+  --color-status-info: var(--info);
+
+  --color-ar-selection: var(--ar-selection);
+  --color-ar-bounding: var(--ar-bounding);
+  --color-ar-handle: var(--ar-handle);
+  --color-ar-surface: var(--ar-surface);
+
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: var(--font-dm-serif), Georgia, serif;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom UI Utility Classes */
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.shadow-card-hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.shadow-modal {
+  box-shadow: var(--shadow-modal);
+}
