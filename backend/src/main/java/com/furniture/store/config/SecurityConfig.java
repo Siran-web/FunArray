@@ -60,14 +60,28 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        // Public product & catalog browsing
+                        // Public product & catalog browsing & inventory check
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/products/**",
                                 "/api/products/**",
                                 "/api/v1/categories/**",
                                 "/api/categories/**",
                                 "/api/v1/stores/**",
-                                "/api/stores/**"
+                                "/api/stores/**",
+                                "/api/v1/inventory/check/**",
+                                "/api/inventory/check/**",
+                                "/api/v1/inventory/variant/**",
+                                "/api/v1/inventory/product/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/inventory/check",
+                                "/api/inventory/check",
+                                "/api/v1/inventory/reserve",
+                                "/api/inventory/reserve",
+                                "/api/v1/inventory/release",
+                                "/api/inventory/release",
+                                "/api/v1/inventory/commit",
+                                "/api/inventory/commit"
                         ).permitAll()
                         // Admin restricted catalog mutations
                         .requestMatchers(HttpMethod.POST,

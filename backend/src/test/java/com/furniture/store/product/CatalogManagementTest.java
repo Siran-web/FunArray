@@ -62,6 +62,9 @@ class CatalogManagementTest {
     private FurnitureModelRepository furnitureModelRepository;
 
     @Autowired
+    private com.furniture.store.inventory.repository.InventoryRepository inventoryRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -77,6 +80,7 @@ class CatalogManagementTest {
 
     @BeforeEach
     void setUp() {
+        inventoryRepository.deleteAll();
         furnitureModelRepository.deleteAll();
         productImageRepository.deleteAll();
         productVariantRepository.deleteAll();

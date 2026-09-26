@@ -41,6 +41,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("DUPLICATE_RESOURCE", ex.getMessage()));
     }
 
+    @ExceptionHandler(com.furniture.store.exception.InsufficientInventoryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInsufficientInventory(com.furniture.store.exception.InsufficientInventoryException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("INSUFFICIENT_INVENTORY", ex.getMessage()));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
