@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-[#FAF9F7] text-[#24211E]">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
