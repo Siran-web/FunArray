@@ -1,4 +1,4 @@
-import { Product } from "@/types/product";
+import { Product, ProductVariant, ProductImage, Furniture3DModel } from "@/types/product";
 import { FEATURED_PRODUCTS, CATEGORIES, CategoryItem } from "@/data/mock-products";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
@@ -12,6 +12,7 @@ export interface ProductQueryParams {
   color?: string;
   q?: string;
   sortBy?: "featured" | "price_asc" | "price_desc" | "rating" | "newest";
+  status?: string;
 }
 
 export interface ProductsResponse {
@@ -20,6 +21,34 @@ export interface ProductsResponse {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+export interface CategoryTreeItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  parentId?: string;
+  sortOrder?: number;
+  children?: CategoryTreeItem[];
+}
+
+export interface PresignedUploadRequest {
+  filename: string;
+  contentType: string;
+  fileSize: number;
+  resourceType: "PRODUCT_IMAGE" | "3D_MODEL" | "ROOM_SCAN";
+}
+
+export interface PresignedUploadResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+  expiresInSeconds: number;
+  maxSizeBytes: number;
+  contentType: string;
+  requiredHeaders?: Record<string, string>;
 }
 
 export async function getProducts(params: ProductQueryParams = {}): Promise<ProductsResponse> {
@@ -32,6 +61,7 @@ export async function getProducts(params: ProductQueryParams = {}): Promise<Prod
   if (params.color) query.set("color", params.color);
   if (params.q) query.set("q", params.q);
   if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.status) query.set("status", params.status);
 
   try {
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
@@ -46,7 +76,6 @@ export async function getProducts(params: ProductQueryParams = {}): Promise<Prod
       }
     }
   } catch (error) {
-    // Graceful fallback to client curated data if backend is offline
     console.warn("Backend API not reachable, falling back to local dataset:", error);
   }
 
@@ -76,7 +105,8 @@ export async function getProducts(params: ProductQueryParams = {}): Promise<Prod
         p.name.toLowerCase().includes(term) ||
         p.description.toLowerCase().includes(term) ||
         p.material.toLowerCase().includes(term) ||
-        p.brand.toLowerCase().includes(term)
+        p.brand.toLowerCase().includes(term) ||
+        p.sku.toLowerCase().includes(term)
     );
   }
 
@@ -105,9 +135,9 @@ export async function getProducts(params: ProductQueryParams = {}): Promise<Prod
   };
 }
 
-export async function getProductById(id: string): Promise<Product | null> {
+export async function getProductById(idOrSlug: string): Promise<Product | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/products/${id}`, {
+    const res = await fetch(`${API_BASE_URL}/products/${idOrSlug}`, {
       next: { revalidate: 60 },
     });
     if (res.ok) {
@@ -120,12 +150,34 @@ export async function getProductById(id: string): Promise<Product | null> {
     console.warn("Backend API unreachable for product detail, using local data:", error);
   }
 
-  return FEATURED_PRODUCTS.find((p) => p.id === id) || null;
+  return FEATURED_PRODUCTS.find((p) => p.id === idOrSlug || p.slug === idOrSlug) || null;
 }
 
 export async function getCategories(): Promise<CategoryItem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/categories`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data.map((c: any) => ({
+          id: c.slug || c.id,
+          name: c.name,
+          slug: c.slug,
+          itemCount: 4,
+          imageUrl: c.imageUrl || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80",
+          parentId: c.parentId
+        }));
+      }
+    }
+  } catch (error) {
+    // fallback
+  }
+  return CATEGORIES;
+}
+
+export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/categories/tree`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) {
@@ -135,5 +187,51 @@ export async function getCategories(): Promise<CategoryItem[]> {
   } catch (error) {
     // fallback
   }
-  return CATEGORIES;
+  return [];
+}
+
+export async function requestPresignedUpload(
+  data: PresignedUploadRequest,
+  token?: string
+): Promise<PresignedUploadResponse | null> {
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}/storage/presigned-upload-url`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to request presigned upload URL:", error);
+  }
+  return null;
+}
+
+export async function uploadDirectToS3(
+  uploadUrl: string,
+  file: File | Blob,
+  contentType: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType,
+      },
+      body: file,
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Direct S3 upload failed:", error);
+    return false;
+  }
 }

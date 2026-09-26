@@ -1,8 +1,11 @@
 package com.furniture.store.config;
 
-import com.furniture.store.auth.JwtAuthenticationFilter;
+import com.furniture.store.auth.security.JwtAccessDeniedHandler;
+import com.furniture.store.auth.security.JwtAuthenticationEntryPoint;
+import com.furniture.store.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -24,9 +27,17 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+            JwtAccessDeniedHandler jwtAccessDeniedHandler
+    ) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     }
 
     @Bean
@@ -35,22 +46,75 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
-                        // Public discovery & documentation endpoints
+                        // Public discovery & auth endpoints
                         .requestMatchers(
                                 "/api/v1/health",
+                                "/api/v1/auth/**",
                                 "/api/auth/**",
-                                "/api/products/**",
-                                "/api/categories/**",
-                                "/api/stores/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        // Role-guarded endpoints
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/staff/**", "/api/store/**").hasAnyRole("STORE_STAFF", "STORE_MANAGER", "ADMIN")
-                        // Default
+                        // Public product & catalog browsing
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/products/**",
+                                "/api/products/**",
+                                "/api/v1/categories/**",
+                                "/api/categories/**",
+                                "/api/v1/stores/**",
+                                "/api/stores/**"
+                        ).permitAll()
+                        // Admin restricted catalog mutations
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/categories/**",
+                                "/api/categories/**",
+                                "/api/v1/products/**",
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/v1/categories/**",
+                                "/api/categories/**",
+                                "/api/v1/products/**",
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH,
+                                "/api/v1/categories/**",
+                                "/api/categories/**",
+                                "/api/v1/products/**",
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/api/v1/categories/**",
+                                "/api/categories/**",
+                                "/api/v1/products/**",
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+                        // Admin portal restricted endpoints
+                        .requestMatchers(
+                                "/api/v1/admin/**",
+                                "/api/admin/**"
+                        ).hasRole("ADMIN")
+                        // Staff restricted endpoints
+                        .requestMatchers(
+                                "/api/v1/staff/**",
+                                "/api/staff/**",
+                                "/api/store/**"
+                        ).hasAnyRole("STAFF", "STORE_STAFF", "STORE_MANAGER", "ADMIN")
+                        // Storage presigned uploads & Customer endpoints
+                        .requestMatchers(
+                                "/api/v1/storage/**",
+                                "/api/storage/**",
+                                "/api/v1/addresses/**",
+                                "/api/v1/users/**",
+                                "/api/v1/cart/**",
+                                "/api/v1/orders/**"
+                        ).authenticated()
+                        // Default fallback
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

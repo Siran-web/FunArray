@@ -8,11 +8,10 @@ import { ProductCard } from "@/components/product/product-card";
 import { ARPreviewModal } from "@/components/ar/ar-preview-modal";
 import { CartDrawer, CartItemEntry } from "@/components/commerce/cart-drawer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Product } from "@/types/product";
 import { getProducts, getCategories } from "@/services/productApi";
-import { FEATURED_PRODUCTS, CATEGORIES } from "@/data/mock-products";
+import { FEATURED_PRODUCTS, CATEGORIES, CategoryItem } from "@/data/mock-products";
 import {
   Filter,
   Search,
@@ -23,12 +22,19 @@ import {
   Check,
   RotateCcw,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
 
 export default function ProductListingPage() {
   const [products, setProducts] = React.useState<Product[]>(FEATURED_PRODUCTS);
+  const [categoriesList, setCategoriesList] = React.useState<CategoryItem[]>(CATEGORIES);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [totalElements, setTotalElements] = React.useState(FEATURED_PRODUCTS.length);
 
   // Filters State
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -36,7 +42,7 @@ export default function ProductListingPage() {
   const [priceRange, setPriceRange] = React.useState<string>("all");
   const [arOnly, setArOnly] = React.useState(false);
   const [inStockOnly, setInStockOnly] = React.useState(false);
-  const [sortBy, setSortBy] = React.useState<"featured" | "price_asc" | "price_desc" | "rating">("featured");
+  const [sortBy, setSortBy] = React.useState<"featured" | "price_asc" | "price_desc" | "rating" | "newest">("featured");
 
   // Mobile Filter Drawer
   const [mobileFilterOpen, setMobileFilterOpen] = React.useState(false);
@@ -53,6 +59,15 @@ export default function ProductListingPage() {
     },
   ]);
 
+  // Fetch dynamic categories on mount
+  React.useEffect(() => {
+    getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategoriesList(cats);
+      }
+    });
+  }, []);
+
   // Execute filtering & search
   React.useEffect(() => {
     let minPrice: number | undefined;
@@ -65,6 +80,8 @@ export default function ProductListingPage() {
 
     setIsLoading(true);
     getProducts({
+      page: currentPage,
+      size: 12,
       category: selectedCategory,
       minPrice,
       maxPrice,
@@ -75,9 +92,11 @@ export default function ProductListingPage() {
       if (arOnly) items = items.filter((p) => p.arSupported);
       if (inStockOnly) items = items.filter((p) => p.availableOnline);
       setProducts(items);
+      setTotalPages(res.totalPages || 1);
+      setTotalElements(res.totalElements || items.length);
       setIsLoading(false);
     });
-  }, [selectedCategory, priceRange, searchQuery, sortBy, arOnly, inStockOnly]);
+  }, [selectedCategory, priceRange, searchQuery, sortBy, arOnly, inStockOnly, currentPage]);
 
   const handleResetFilters = () => {
     setSelectedCategory("all");
@@ -86,6 +105,7 @@ export default function ProductListingPage() {
     setArOnly(false);
     setInStockOnly(false);
     setSortBy("featured");
+    setCurrentPage(0);
   };
 
   const handleOpenAR = (product: Product) => {
@@ -150,7 +170,7 @@ export default function ProductListingPage() {
                 Architectural Furniture Catalog
               </h1>
               <p className="text-xs sm:text-sm text-[#6F6A64]">
-                Showing {products.length} {products.length === 1 ? "piece" : "pieces"} • True-scale 3D models available for in-room preview.
+                Showing {products.length} of {totalElements} {totalElements === 1 ? "piece" : "pieces"} • True-scale 3D models available for in-room preview.
               </p>
             </div>
 
@@ -193,14 +213,20 @@ export default function ProductListingPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Sofa, walnut table, oak..."
+                  placeholder="Sofa, walnut table, teak, SKU..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(0);
+                  }}
                   className="w-full h-10 px-3 pr-8 text-xs bg-[#FAF9F7] text-[#24211E] rounded-[8px] border border-[#E5E0DA] focus:border-[#8B5E3C] outline-none"
                 />
                 {searchQuery ? (
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setCurrentPage(0);
+                    }}
                     className="absolute right-2.5 top-2.5 text-[#9B958E] hover:text-[#24211E]"
                   >
                     <X className="w-4 h-4" />
@@ -214,11 +240,14 @@ export default function ProductListingPage() {
             {/* Living Space Categories */}
             <div className="space-y-3">
               <label className="text-xs font-semibold uppercase tracking-wider text-[#6F6A64]">
-                Living Space
+                Living Space / Category
               </label>
-              <div className="space-y-1.5 text-xs">
+              <div className="space-y-1.5 text-xs max-h-60 overflow-y-auto pr-1">
                 <button
-                  onClick={() => setSelectedCategory("all")}
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    setCurrentPage(0);
+                  }}
                   className={`w-full text-left py-1.5 px-2.5 rounded-[8px] transition-colors cursor-pointer flex items-center justify-between ${
                     selectedCategory === "all"
                       ? "bg-[#F3E8DE] text-[#8B5E3C] font-semibold"
@@ -226,20 +255,23 @@ export default function ProductListingPage() {
                   }`}
                 >
                   <span>All Collections</span>
-                  <span className="text-[11px] text-[#9B958E]">6</span>
+                  <span className="text-[11px] text-[#9B958E]">{totalElements}</span>
                 </button>
-                {CATEGORIES.map((cat) => (
+                {categoriesList.map((cat) => (
                   <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    key={cat.id || cat.slug}
+                    onClick={() => {
+                      setSelectedCategory(cat.slug || cat.id);
+                      setCurrentPage(0);
+                    }}
                     className={`w-full text-left py-1.5 px-2.5 rounded-[8px] transition-colors cursor-pointer flex items-center justify-between ${
-                      selectedCategory === cat.id
+                      selectedCategory === (cat.slug || cat.id)
                         ? "bg-[#F3E8DE] text-[#8B5E3C] font-semibold"
                         : "text-[#6F6A64] hover:bg-[#F4F2EF] hover:text-[#24211E]"
                     }`}
                   >
-                    <span>{cat.name}</span>
-                    <span className="text-[11px] text-[#9B958E]">{cat.itemCount}</span>
+                    <span className="line-clamp-1">{cat.name}</span>
+                    <span className="text-[11px] text-[#9B958E]">{cat.itemCount || 4}</span>
                   </button>
                 ))}
               </div>
@@ -260,7 +292,10 @@ export default function ProductListingPage() {
                 ].map((tier) => (
                   <button
                     key={tier.id}
-                    onClick={() => setPriceRange(tier.id)}
+                    onClick={() => {
+                      setPriceRange(tier.id);
+                      setCurrentPage(0);
+                    }}
                     className={`w-full text-left py-1.5 px-2.5 rounded-[8px] transition-colors cursor-pointer flex items-center justify-between ${
                       priceRange === tier.id
                         ? "bg-[#F3E8DE] text-[#8B5E3C] font-semibold"
@@ -284,7 +319,10 @@ export default function ProductListingPage() {
                   <input
                     type="checkbox"
                     checked={arOnly}
-                    onChange={(e) => setArOnly(e.target.checked)}
+                    onChange={(e) => {
+                      setArOnly(e.target.checked);
+                      setCurrentPage(0);
+                    }}
                     className="rounded border-[#E5E0DA] text-[#8B5E3C] focus:ring-[#8B5E3C]"
                   />
                   <span className="flex items-center gap-1 font-medium">
@@ -297,7 +335,10 @@ export default function ProductListingPage() {
                   <input
                     type="checkbox"
                     checked={inStockOnly}
-                    onChange={(e) => setInStockOnly(e.target.checked)}
+                    onChange={(e) => {
+                      setInStockOnly(e.target.checked);
+                      setCurrentPage(0);
+                    }}
                     className="rounded border-[#E5E0DA] text-[#8B5E3C] focus:ring-[#8B5E3C]"
                   />
                   <span>In-Stock for Immediate Dispatch</span>
@@ -347,12 +388,16 @@ export default function ProductListingPage() {
                 <span className="text-xs text-[#6F6A64]">Sort by:</span>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value as any);
+                    setCurrentPage(0);
+                  }}
                   className="h-9 px-3 text-xs bg-[#FAF9F7] text-[#24211E] rounded-[8px] border border-[#E5E0DA] focus:border-[#8B5E3C] outline-none font-medium cursor-pointer"
                 >
                   <option value="featured">Featured Curations</option>
                   <option value="price_asc">Price: Low to High</option>
                   <option value="price_desc">Price: High to Low</option>
+                  <option value="newest">Newest Arrivals</option>
                   <option value="rating">Highest Customer Rating</option>
                 </select>
               </div>
@@ -378,15 +423,44 @@ export default function ProductListingPage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onViewInRoom={handleOpenAR}
-                    onAddToCart={handleAddToCart}
-                  />
-                ))}
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {products.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onViewInRoom={handleOpenAR}
+                      onAddToCart={handleAddToCart}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-6 border-t border-[#E5E0DA]">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 0}
+                      onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                      className="gap-1 text-xs"
+                    >
+                      <ChevronLeft className="w-4 h-4" /> Previous
+                    </Button>
+                    <span className="text-xs text-[#6F6A64] px-3">
+                      Page {currentPage + 1} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage >= totalPages - 1}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                      className="gap-1 text-xs"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

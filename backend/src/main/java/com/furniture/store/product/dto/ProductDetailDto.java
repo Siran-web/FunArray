@@ -11,7 +11,9 @@ public record ProductDetailDto(
         String description,
         String brand,
         BigDecimal basePrice,
+        String status,
         String material,
+        BigDecimal weight,
         DimensionsDto dimensions,
         String sku,
         String categoryId,
@@ -25,6 +27,30 @@ public record ProductDetailDto(
         ARAssetDto model3D,
         Map<String, String> storeAvailability
 ) {
+    public ProductDetailDto(
+            String id,
+            String name,
+            String slug,
+            String description,
+            String brand,
+            BigDecimal basePrice,
+            String material,
+            DimensionsDto dimensions,
+            String sku,
+            String categoryId,
+            String categoryName,
+            double rating,
+            int reviewCount,
+            boolean available,
+            boolean arSupported,
+            List<ProductImageDto> images,
+            List<ProductVariantDto> variants,
+            ARAssetDto model3D,
+            Map<String, String> storeAvailability
+    ) {
+        this(id, name, slug, description, brand, basePrice, "ACTIVE", material, null, dimensions, sku, categoryId, categoryName, rating, reviewCount, available, arSupported, images, variants, model3D, storeAvailability);
+    }
+
     public record DimensionsDto(
             BigDecimal widthCm,
             BigDecimal heightCm,
@@ -46,6 +72,11 @@ public record ProductDetailDto(
             String color,
             String material,
             BigDecimal price,
-            int stockQuantity
-    ) {}
+            int stockQuantity,
+            String status
+    ) {
+        public ProductVariantDto(String id, String sku, String color, String material, BigDecimal price, int stockQuantity) {
+            this(id, sku, color, material, price, stockQuantity, "ACTIVE");
+        }
+    }
 }
