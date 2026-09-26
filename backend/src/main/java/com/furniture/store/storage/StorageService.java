@@ -71,6 +71,16 @@ public class StorageService {
                     throw new BadRequestException("Invalid 3D model file extension. Only .glb, .gltf, and .usdz are accepted.");
                 }
             }
+            case "ROOM_IMAGE" -> {
+                maxSizeBytes = MAX_IMAGE_SIZE;
+                folder = "rooms/images/";
+                if (!ALLOWED_IMAGE_TYPES.contains(contentType)) {
+                    throw new BadRequestException("Invalid content type for room image. Allowed: JPEG, PNG, WebP, AVIF.");
+                }
+                if (!hasImageExtension(filename)) {
+                    throw new BadRequestException("Invalid image file extension. Allowed: .jpg, .jpeg, .png, .webp, .avif");
+                }
+            }
             case "ROOM_SCAN" -> {
                 maxSizeBytes = MAX_ROOM_SCAN_SIZE;
                 folder = "rooms/scans/";

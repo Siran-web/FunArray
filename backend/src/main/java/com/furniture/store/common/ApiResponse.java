@@ -16,6 +16,10 @@ public record ApiResponse<T>(
         return new ApiResponse<>(true, data, null, Instant.now());
     }
 
+    public static <T> ApiResponse<T> created(T data) {
+        return new ApiResponse<>(true, data, null, Instant.now());
+    }
+
     public static <T> ApiResponse<T> error(String code, String message) {
         return new ApiResponse<>(false, null, new ErrorDetails(code, message, null), Instant.now());
     }

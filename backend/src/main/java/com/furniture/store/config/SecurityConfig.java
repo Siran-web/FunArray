@@ -119,10 +119,14 @@ public class SecurityConfig {
                                 "/api/staff/**",
                                 "/api/store/**"
                         ).hasAnyRole("STAFF", "STORE_STAFF", "STORE_MANAGER", "ADMIN")
-                        // Storage presigned uploads & Customer endpoints
+                        // Storage presigned uploads, Rooms, Visualization & Customer endpoints
                         .requestMatchers(
                                 "/api/v1/storage/**",
                                 "/api/storage/**",
+                                "/api/v1/rooms/**",
+                                "/api/rooms/**",
+                                "/api/v1/visualization/**",
+                                "/api/visualization/**",
                                 "/api/v1/addresses/**",
                                 "/api/v1/users/**",
                                 "/api/v1/cart/**",
