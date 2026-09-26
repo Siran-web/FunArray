@@ -133,7 +133,10 @@ public class SecurityConfig {
                                 "/api/v1/users/**",
                                 "/api/v1/cart/**",
                                 "/api/cart/**",
-                                "/api/v1/orders/**"
+                                "/api/v1/checkout/**",
+                                "/api/checkout/**",
+                                "/api/v1/orders/**",
+                                "/api/orders/**"
                         ).authenticated()
                         // Default fallback
                         .anyRequest().authenticated()

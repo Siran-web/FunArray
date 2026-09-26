@@ -89,6 +89,19 @@ class VisualizationSessionAndCartTest {
     private Product product;
     private ProductVariant variant;
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cartItemRepository.deleteAll();
+        cartRepository.deleteAll();
+        sessionRepository.deleteAll();
+        roomImageRepository.deleteAll();
+        inventoryRepository.deleteAll();
+        productVariantRepository.deleteAll();
+        productRepository.deleteAll();
+        categoryRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
     @BeforeEach
     void setUp() {
         cartItemRepository.deleteAll();
