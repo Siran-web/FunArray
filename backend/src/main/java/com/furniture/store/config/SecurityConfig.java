@@ -125,11 +125,14 @@ public class SecurityConfig {
                                 "/api/storage/**",
                                 "/api/v1/rooms/**",
                                 "/api/rooms/**",
+                                "/api/v1/visualizations/**",
+                                "/api/visualizations/**",
                                 "/api/v1/visualization/**",
                                 "/api/visualization/**",
                                 "/api/v1/addresses/**",
                                 "/api/v1/users/**",
                                 "/api/v1/cart/**",
+                                "/api/cart/**",
                                 "/api/v1/orders/**"
                         ).authenticated()
                         // Default fallback

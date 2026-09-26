@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping({"/api/v1/visualization/sessions", "/api/visualization/sessions"})
-@Tag(name = "Visualization Sessions", description = "Save and retrieve interactive 3D furniture layout sessions")
+@RequestMapping({"/api/v1/visualizations", "/api/visualizations", "/api/v1/visualization/sessions", "/api/visualization/sessions"})
+@Tag(name = "Visualization Sessions", description = "Create, read, update and delete 3D furniture layout sessions")
 public class VisualizationSessionController {
 
     private final VisualizationService visualizationService;
@@ -59,6 +59,19 @@ public class VisualizationSessionController {
         String userId = principal != null ? principal.getId() : null;
         VisualizationSessionDto session = visualizationService.getSession(id, userId);
         return ResponseEntity.ok(ApiResponse.ok(session));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update an existing visualization session")
+    public ResponseEntity<ApiResponse<VisualizationSessionDto>> updateSession(
+            @PathVariable String id,
+            @Valid @RequestBody SaveSessionRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        VisualizationSessionDto updated = visualizationService.updateSession(id, principal.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
     @DeleteMapping("/{id}")

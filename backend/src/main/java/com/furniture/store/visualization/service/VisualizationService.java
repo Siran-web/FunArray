@@ -136,6 +136,27 @@ public class VisualizationService {
         sessionRepository.delete(session);
     }
 
+    public VisualizationSessionDto updateSession(String id, String userId, SaveSessionRequest request) {
+        VisualizationSession session = sessionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Visualization session not found: " + id));
+
+        if (session.getUser() != null && !session.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("Access denied to update this visualization session.");
+        }
+
+        if (request.name() != null) session.setName(request.name());
+        if (request.roomImageUrl() != null) session.setRoomImageUrl(request.roomImageUrl());
+        if (request.sceneData() != null) session.setSceneData(request.sceneData());
+        if (request.roomImageId() != null) {
+            RoomImage roomImage = roomImageRepository.findById(request.roomImageId()).orElse(null);
+            session.setRoomImage(roomImage);
+        }
+
+        session.setUpdatedAt(java.time.Instant.now());
+        VisualizationSession saved = sessionRepository.save(session);
+        return toDto(saved);
+    }
+
     // ==================== Helpers ====================
 
     private RoomImageDto toDto(RoomImage image) {
