@@ -82,22 +82,22 @@ export function HeroSection({ onOpenAR, onExploreCollection }: HeroSectionProps)
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
               {/* Floating AR Demonstration Badge */}
-              <div className="absolute bottom-5 left-5 right-5 bg-white/95 backdrop-blur-md rounded-[16px] p-4 border border-[#E5E0DA] shadow-card flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-[10px] bg-[#8B5E3C] text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Box className="w-6 h-6 text-[#F3E8DE]" />
+              <div className="absolute bottom-3 sm:bottom-5 left-3 sm:left-5 right-3 sm:right-5 bg-white/95 backdrop-blur-md rounded-[16px] p-3 sm:p-4 border border-[#E5E0DA] shadow-card flex items-center justify-between gap-2 sm:gap-4 max-w-full overflow-hidden">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-[10px] bg-[#8B5E3C] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Box className="w-5 sm:w-6 h-5 sm:h-6 text-[#F3E8DE]" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#8B5E3C] uppercase tracking-wider">
+                      <span className="text-[10px] sm:text-xs font-semibold text-[#8B5E3C] uppercase tracking-wider">
                         Virtual Room Match
                       </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#2F7D50]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2F7D50] shrink-0" />
                     </div>
-                    <p className="text-sm font-medium text-[#24211E]">
+                    <p className="text-xs sm:text-sm font-medium text-[#24211E] truncate">
                       Kanso 3-Seater Sofa placed in Living Room
                     </p>
-                    <p className="text-xs text-[#6F6A64]">
+                    <p className="text-[10px] sm:text-xs text-[#6F6A64] truncate">
                       Scale locked to 225 × 82 × 95 cm
                     </p>
                   </div>

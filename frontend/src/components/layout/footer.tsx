@@ -146,9 +146,9 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar: Copyright & Accessibility */}
-        <div className="pt-8 border-t border-[#FAF9F7]/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#FAF9F7]/50">
+        <div className="pt-8 border-t border-[#FAF9F7]/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#FAF9F7]/50 text-center sm:text-left">
           <p>© 2026 FunArray Furniture Inc. All rights reserved. Designed to WCAG 2.2 AA accessibility standards.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2">
             <span className="hover:text-white cursor-pointer">Privacy Policy</span>
             <span className="hover:text-white cursor-pointer">Terms of Service</span>
             <span className="hover:text-white cursor-pointer">Accessibility Statement</span>

@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-[#FAF9F7] text-[#24211E]">
+      <body className="min-h-full w-full max-w-full overflow-x-hidden flex flex-col bg-[#FAF9F7] text-[#24211E]">
         <AuthProvider>
           {children}
         </AuthProvider>

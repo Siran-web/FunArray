@@ -73,18 +73,18 @@ export function Navbar({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full transition-all duration-300">
+    <header className="sticky top-0 z-40 w-full max-w-full overflow-x-clip transition-all duration-300">
       {/* 1. Top Omnichannel Showroom & Service Bar */}
-      <div className="bg-[#24211E] text-[#F3E8DE] px-4 py-1.5 text-xs font-medium">
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-[11px] text-[#D49A6A]">
-              <MapPin className="w-3.5 h-3.5" />
-              <span>Flagship Showroom • Open Today until 8:00 PM</span>
+      <div className="bg-[#24211E] text-[#F3E8DE] px-4 py-1.5 text-xs font-medium w-full overflow-hidden">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex items-center gap-1.5 text-[11px] text-[#D49A6A] min-w-0">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Flagship Showroom • Open Today until 8:00 PM</span>
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-4 text-[11px]">
+          <div className="hidden md:flex items-center gap-4 text-[11px] shrink-0">
             <span className="text-[#9B958E]">Complimentary White-Glove In-Room Delivery</span>
             <span className="text-[#6F6A64]">|</span>
             <a href="tel:+18004198890" className="hover:text-white flex items-center gap-1">
@@ -101,7 +101,7 @@ export function Navbar({
           isScrolled ? "border-[#E5E0DA] shadow-sm py-3" : "border-transparent py-4"
         }`}
       >
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12 flex items-center justify-between gap-6">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12 flex items-center justify-between gap-4 sm:gap-6">
           {/* Left: Mobile Menu Trigger & Logo */}
           <div className="flex items-center gap-3 sm:gap-6">
             <button
@@ -145,15 +145,15 @@ export function Navbar({
             {/* Search Toggle */}
             <div className="relative">
               {searchOpen ? (
-                <div className="flex items-center bg-white border border-[#8B5E3C] rounded-[10px] px-3 py-1 shadow-sm">
-                  <Search className="w-4 h-4 text-[#8B5E3C] mr-2 shrink-0" />
+                <div className="flex items-center bg-white border border-[#8B5E3C] rounded-[10px] px-2.5 py-1 shadow-sm max-w-[calc(100vw-130px)] sm:max-w-none">
+                  <Search className="w-4 h-4 text-[#8B5E3C] mr-1.5 shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search sofas, tables, dining..."
+                    placeholder="Search catalog..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     autoFocus
-                    className="w-48 sm:w-64 text-xs bg-transparent outline-none text-[#24211E] placeholder:text-[#9B958E]"
+                    className="w-24 sm:w-64 max-w-[140px] sm:max-w-none text-xs bg-transparent outline-none text-[#24211E] placeholder:text-[#9B958E]"
                   />
                   <button
                     onClick={() => setSearchOpen(false)}
