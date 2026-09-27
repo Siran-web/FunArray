@@ -20,6 +20,8 @@ import {
   Info
 } from "lucide-react";
 
+import { CameraARViewer } from "./camera-ar-viewer";
+
 export interface ARPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -33,7 +35,7 @@ export function ARPreviewModal({
   product,
   onAddToCart,
 }: ARPreviewModalProps) {
-  const [activeStep, setActiveStep] = React.useState<"select-mode" | "uploading" | "preview">("select-mode");
+  const [activeStep, setActiveStep] = React.useState<"select-mode" | "uploading" | "preview" | "camera-ar">("select-mode");
   const [rotationAngle, setRotationAngle] = React.useState(0);
   const [isSaved, setIsSaved] = React.useState(false);
   const [isAdded, setIsAdded] = React.useState(false);
@@ -54,6 +56,10 @@ export function ARPreviewModal({
     setTimeout(() => {
       setActiveStep("preview");
     }, 1400);
+  };
+
+  const handleStartCameraAR = () => {
+    setActiveStep("camera-ar");
   };
 
   const handleAddToCart = () => {
@@ -118,7 +124,7 @@ export function ARPreviewModal({
               </button>
 
               <button
-                onClick={handleSimulateUpload}
+                onClick={handleStartCameraAR}
                 className="p-5 rounded-[16px] border border-[#E5E0DA] bg-white hover:border-[#8B5E3C] hover:bg-[#F4F2EF] text-left transition-all cursor-pointer space-y-2 group"
               >
                 <div className="w-10 h-10 rounded-[10px] bg-[#24211E] text-[#D49A6A] flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -129,10 +135,22 @@ export function ARPreviewModal({
                   Scan your room surface in real-time via WebXR surface detection. True millimeter scale in your space.
                 </p>
                 <span className="text-[11px] font-bold text-[#8B5E3C] block pt-1">
-                  Supported on iOS & Android →
+                  Launch Live Camera AR →
                 </span>
               </button>
             </div>
+          </div>
+        )}
+
+        {/* STEP 2: Live Camera AR Mode */}
+        {activeStep === "camera-ar" && (
+          <div className="space-y-3">
+            <CameraARViewer
+              product={product}
+              onFallbackToPhotoUpload={() => handleSimulateUpload()}
+              onAddToCart={onAddToCart}
+              onClose={onClose}
+            />
           </div>
         )}
 
