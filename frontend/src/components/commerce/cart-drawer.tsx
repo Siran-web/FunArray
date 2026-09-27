@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -171,15 +172,16 @@ export function CartDrawer({
                 </div>
               </div>
 
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full bg-[#8B5E3C] hover:bg-[#634027] text-white"
-                onClick={() => alert("Multi-step Checkout Funnel will be fully connected in Phase 4.")}
-              >
-                <span>Proceed to Secure Checkout</span>
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              <Link href="/checkout" onClick={onClose} className="block w-full">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full bg-[#8B5E3C] hover:bg-[#634027] text-white font-semibold"
+                >
+                  <span>Proceed to Secure Checkout</span>
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
 
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#9B958E]">
                 <span className="flex items-center gap-1">
