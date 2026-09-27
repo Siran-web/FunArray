@@ -12,6 +12,20 @@ function onRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
+export class ApiError extends Error {
+  code?: string;
+  fieldErrors?: Record<string, string>;
+  status?: number;
+
+  constructor(message: string, code?: string, fieldErrors?: Record<string, string>, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.fieldErrors = fieldErrors;
+    this.status = status;
+  }
+}
+
 export async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
   const headers: Record<string, string> = {
@@ -80,7 +94,9 @@ export async function fetchWithAuth<T>(endpoint: string, options: RequestInit = 
   const json = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(json?.error?.message || json?.message || 'An unexpected error occurred');
+    const errorDetails = json?.error;
+    const msg = errorDetails?.message || json?.message || (response.status === 429 ? 'Rate limit exceeded. Please wait a moment and try again.' : 'An unexpected error occurred');
+    throw new ApiError(msg, errorDetails?.code, errorDetails?.fieldErrors, response.status);
   }
 
   return json.data !== undefined ? json.data : json;

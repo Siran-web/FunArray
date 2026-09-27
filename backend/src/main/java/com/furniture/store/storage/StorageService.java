@@ -123,7 +123,15 @@ public class StorageService {
         if (name == null || name.isBlank()) {
             return "file.bin";
         }
-        return name.replaceAll("[^a-zA-Z0-9._-]", "_").toLowerCase();
+        // Strip any directory traversal or path separators
+        String cleanName = name.replace('\\', '/');
+        int lastSlash = cleanName.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            cleanName = cleanName.substring(lastSlash + 1);
+        }
+        // Remove characters outside whitelist and collapse consecutive dots
+        cleanName = cleanName.replaceAll("[^a-zA-Z0-9._-]", "_").replaceAll("\\.{2,}", ".").toLowerCase();
+        return cleanName.isBlank() ? "file.bin" : cleanName;
     }
 
     private boolean hasImageExtension(String name) {

@@ -7,7 +7,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
   flyway:
     enabled: false # in initial dev, Hibernate ddl-auto update provides seamless schema management
 

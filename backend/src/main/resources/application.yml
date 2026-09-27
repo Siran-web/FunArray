@@ -24,7 +24,31 @@ app:
     expiration-ms: ${JWT_EXPIRATION:3600000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000}
   cors:
-    allowed-origins: ${FRONTEND_URL:http://localhost:3000}
+    allowed-origins: ${FRONTEND_URL:http://localhost:3000,http://localhost:3001}
+
+# Observability & Health Monitoring (TICKET-039)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# Structured Logging with MDC Request ID
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [req:%X{requestId:-none}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [req:%X{requestId:-none}] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.furniture.store: INFO
+    org.springframework.web: INFO
 
 # SpringDoc / OpenAPI
 springdoc:
