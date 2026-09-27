@@ -56,6 +56,8 @@ public class SecurityConfig {
                                 "/api/v1/health",
                                 "/api/v1/auth/**",
                                 "/api/auth/**",
+                                "/api/v1/payments/webhook",
+                                "/api/payments/webhook",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
@@ -83,6 +85,13 @@ public class SecurityConfig {
                                 "/api/v1/inventory/commit",
                                 "/api/inventory/commit"
                         ).permitAll()
+                        // Customer Product Reviews (TICKET-031)
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/products/*/reviews",
+                                "/api/products/*/reviews",
+                                "/api/v1/reviews/**",
+                                "/api/reviews/**"
+                        ).authenticated()
                         // Admin restricted catalog mutations
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/categories/**",
@@ -125,6 +134,8 @@ public class SecurityConfig {
                                 "/api/storage/**",
                                 "/api/v1/rooms/**",
                                 "/api/rooms/**",
+                                "/api/v1/designs/**",
+                                "/api/designs/**",
                                 "/api/v1/visualizations/**",
                                 "/api/visualizations/**",
                                 "/api/v1/visualization/**",
@@ -136,7 +147,9 @@ public class SecurityConfig {
                                 "/api/v1/checkout/**",
                                 "/api/checkout/**",
                                 "/api/v1/orders/**",
-                                "/api/orders/**"
+                                "/api/orders/**",
+                                "/api/v1/payments/**",
+                                "/api/payments/**"
                         ).authenticated()
                         // Default fallback
                         .anyRequest().authenticated()
