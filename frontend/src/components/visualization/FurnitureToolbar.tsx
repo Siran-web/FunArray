@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { useVisualizationStore } from '../../store/visualizationStore';
 import { PlacedFurniture } from '../../types/visualization';
+import { designApi } from '../../services/designApi';
 
 const ROOM_PRESETS = [
   {
@@ -77,7 +79,12 @@ const CATALOG_ITEMS: Omit<PlacedFurniture, 'id'>[] = [
 export const FurnitureToolbar: React.FC = () => {
   const {
     roomImage,
+    roomImageId,
     setRoomImage,
+    designName,
+    setDesignName,
+    currentDesignId,
+    setCurrentDesignId,
     addFurniture,
     clearScene,
     placedFurniture,
@@ -124,40 +131,48 @@ export const FurnitureToolbar: React.FC = () => {
     setIsCatalogOpen(false);
   };
 
-  const handleSaveScene = async () => {
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [customDesignName, setCustomDesignName] = useState(designName || 'Living Room');
+
+  const handleOpenSaveDialog = () => {
+    setCustomDesignName(designName || 'Living Room');
+    setIsSaveModalOpen(true);
+  };
+
+  const handleConfirmSaveDesign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customDesignName.trim()) return;
+
     setIsSaving(true);
     setSaveStatus(null);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') || sessionStorage.getItem('token') : null;
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const body = {
-        name: `Room Layout (${new Date().toLocaleDateString()})`,
+      const payload = {
+        name: customDesignName.trim(),
+        roomImageId: roomImageId || undefined,
         roomImageUrl: roomImage || undefined,
         sceneData: JSON.stringify(placedFurniture),
       };
 
-      const res = await fetch('http://localhost:8080/api/v1/visualization/sessions', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        setSaveStatus('Scene saved to your account!');
-        setTimeout(() => setSaveStatus(null), 3500);
+      let saved;
+      if (currentDesignId) {
+        saved = await designApi.updateDesign(currentDesignId, payload);
       } else {
-        setSaveStatus('Saved locally to browser.');
-        setTimeout(() => setSaveStatus(null), 3500);
+        saved = await designApi.saveDesign(payload);
+        if (saved && saved.id) {
+          setCurrentDesignId(saved.id);
+        }
       }
-    } catch (err) {
+
+      setDesignName(customDesignName.trim());
+      setIsSaveModalOpen(false);
+      setSaveStatus(`"${customDesignName.trim()}" saved successfully to your designs!`);
+      setTimeout(() => setSaveStatus(null), 4000);
+    } catch (err: any) {
+      console.warn('Could not save design to cloud:', err);
+      setDesignName(customDesignName.trim());
+      setIsSaveModalOpen(false);
       setSaveStatus('Saved locally to browser.');
-      setTimeout(() => setSaveStatus(null), 3500);
+      setTimeout(() => setSaveStatus(null), 4000);
     } finally {
       setIsSaving(false);
     }
@@ -257,12 +272,19 @@ export const FurnitureToolbar: React.FC = () => {
           </button>
 
           <button
-            onClick={handleSaveScene}
+            onClick={handleOpenSaveDialog}
             disabled={isSaving}
-            className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-xl border border-stone-700 transition"
+            className="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-semibold rounded-xl transition shadow-md flex items-center gap-1.5"
           >
-            {isSaving ? 'Saving...' : 'Save Scene'}
+            <span>💾 Save Design</span>
           </button>
+
+          <Link
+            href="/designs"
+            className="px-3.5 py-2 bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium rounded-xl border border-stone-700/60 transition flex items-center gap-1.5"
+          >
+            <span>🛋️ My Designs</span>
+          </Link>
 
           <button
             onClick={clearScene}
@@ -273,6 +295,85 @@ export const FurnitureToolbar: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Save Room Design Modal (TICKET-029) */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <div>
+                <h3 className="text-base font-serif font-bold text-white">Save Room Design</h3>
+                <p className="text-[11px] text-stone-400 mt-0.5">Persist this 3D layout & furniture placement to your account</p>
+              </div>
+              <button onClick={() => setIsSaveModalOpen(false)} className="text-stone-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleConfirmSaveDesign} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1.5">Design Name</label>
+                <input
+                  type="text"
+                  required
+                  value={customDesignName}
+                  onChange={(e) => setCustomDesignName(e.target.value)}
+                  placeholder="e.g., Living Room, Master Bedroom, New Apartment"
+                  className="w-full px-4 py-2.5 bg-stone-950 border border-stone-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition"
+                  autoFocus
+                />
+              </div>
+
+              {/* Quick suggestions */}
+              <div>
+                <span className="text-[11px] text-stone-400 block mb-1.5">Quick Suggestions:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Living Room', 'Master Bedroom', 'New Apartment', 'Guest Room', 'Home Office'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setCustomDesignName(tag)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
+                        customDesignName === tag
+                          ? 'bg-amber-600/30 border-amber-500 text-amber-300'
+                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-white hover:border-stone-700'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-stone-950/60 rounded-xl p-3 text-[11px] text-stone-400 border border-stone-800 space-y-1">
+                <div className="flex justify-between">
+                  <span>Furniture Pieces:</span>
+                  <strong className="text-stone-200">{placedFurniture.length} items</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Room Background:</span>
+                  <span className="text-stone-200 truncate max-w-[180px]">{roomImage ? 'Custom Photo Attached' : 'Default 3D Grid'}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSaveModalOpen(false)}
+                  className="flex-1 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl text-xs font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || !customDesignName.trim()}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 shadow-md"
+                >
+                  {isSaving ? 'Saving...' : 'Save to My Designs'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Room Presets Dropdown */}
       {isPresetsOpen && (

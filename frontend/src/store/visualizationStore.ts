@@ -10,8 +10,12 @@ interface VisualizationState {
   lightingMode: 'warm' | 'studio' | 'daylight';
   showGrid: boolean;
   showShadows: boolean;
+  designName: string;
+  currentDesignId: string | null;
 
   setRoomImage: (url: string | null, id?: string | null, name?: string) => void;
+  setDesignName: (name: string) => void;
+  setCurrentDesignId: (id: string | null) => void;
   addFurniture: (item: PlacedFurniture) => void;
   updateFurnitureTransform: (
     id: string,
@@ -33,6 +37,8 @@ export const useVisualizationStore = create<VisualizationState>((set) => ({
   roomImage: null,
   roomImageId: null,
   roomName: 'My Custom Room',
+  designName: 'Living Room',
+  currentDesignId: null,
   placedFurniture: [],
   selectedFurnitureId: null,
   lightingMode: 'warm',
@@ -41,6 +47,8 @@ export const useVisualizationStore = create<VisualizationState>((set) => ({
 
   setRoomImage: (url, id = null, name = 'My Custom Room') =>
     set({ roomImage: url, roomImageId: id, roomName: name }),
+  setDesignName: (name) => set({ designName: name }),
+  setCurrentDesignId: (id) => set({ currentDesignId: id }),
 
   addFurniture: (item) =>
     set((state) => {

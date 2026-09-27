@@ -157,6 +157,24 @@ public class VisualizationService {
         return toDto(saved);
     }
 
+    public VisualizationSessionDto renameSession(String id, String userId, String newName) {
+        if (newName == null || newName.trim().isBlank()) {
+            throw new com.furniture.store.exception.BadRequestException("Design name cannot be blank");
+        }
+
+        VisualizationSession session = sessionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Visualization design not found: " + id));
+
+        if (session.getUser() != null && !session.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("Access denied to rename this visualization design.");
+        }
+
+        session.setName(newName.trim());
+        session.setUpdatedAt(java.time.Instant.now());
+        VisualizationSession saved = sessionRepository.save(session);
+        return toDto(saved);
+    }
+
     // ==================== Helpers ====================
 
     private RoomImageDto toDto(RoomImage image) {

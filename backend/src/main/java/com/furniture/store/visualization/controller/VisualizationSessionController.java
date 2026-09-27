@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping({"/api/v1/visualizations", "/api/visualizations", "/api/v1/visualization/sessions", "/api/visualization/sessions"})
-@Tag(name = "Visualization Sessions", description = "Create, read, update and delete 3D furniture layout sessions")
+@RequestMapping({"/api/v1/visualizations", "/api/visualizations", "/api/v1/designs", "/api/designs", "/api/v1/visualization/sessions", "/api/visualization/sessions"})
+@Tag(name = "Saved Room Designs & Visualization Sessions", description = "Create, read, update, rename and delete 3D furniture room designs")
 public class VisualizationSessionController {
 
     private final VisualizationService visualizationService;
@@ -29,7 +29,7 @@ public class VisualizationSessionController {
     }
 
     @PostMapping
-    @Operation(summary = "Save or persist a 3D visualization scene session")
+    @Operation(summary = "Save or persist a 3D visualization room design (TICKET-029)")
     public ResponseEntity<ApiResponse<VisualizationSessionDto>> saveSession(
             @Valid @RequestBody SaveSessionRequest request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -42,7 +42,7 @@ public class VisualizationSessionController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "List saved visualization scenes for current user")
+    @Operation(summary = "List saved room designs for current user (TICKET-030)")
     public ResponseEntity<ApiResponse<List<VisualizationSessionDto>>> getUserSessions(
             @AuthenticationPrincipal UserPrincipal principal
     ) {
@@ -51,7 +51,7 @@ public class VisualizationSessionController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Retrieve a visualization session by ID")
+    @Operation(summary = "Retrieve a visualization room design by ID")
     public ResponseEntity<ApiResponse<VisualizationSessionDto>> getSession(
             @PathVariable String id,
             @AuthenticationPrincipal UserPrincipal principal
@@ -64,7 +64,7 @@ public class VisualizationSessionController {
     @PutMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Update an existing visualization session")
+    @Operation(summary = "Update an existing visualization room design")
     public ResponseEntity<ApiResponse<VisualizationSessionDto>> updateSession(
             @PathVariable String id,
             @Valid @RequestBody SaveSessionRequest request,
@@ -74,15 +74,28 @@ public class VisualizationSessionController {
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
+    @PatchMapping("/{id}/rename")
+    @PreAuthorize("isAuthenticated()")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Rename a saved room design (TICKET-030)")
+    public ResponseEntity<ApiResponse<VisualizationSessionDto>> renameSession(
+            @PathVariable String id,
+            @Valid @RequestBody RenameDesignRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        VisualizationSessionDto updated = visualizationService.renameSession(id, principal.getId(), request.name());
+        return ResponseEntity.ok(ApiResponse.ok(updated));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Delete a visualization session by ID")
+    @Operation(summary = "Delete a visualization room design by ID (TICKET-030)")
     public ResponseEntity<ApiResponse<Map<String, String>>> deleteSession(
             @PathVariable String id,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         visualizationService.deleteSession(id, principal.getId());
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("message", "Session deleted successfully")));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("message", "Design deleted successfully")));
     }
 }
