@@ -99,7 +99,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans selection:bg-[#F3E8DE] selection:text-[#8B5E3C]">
+    <div className="h-full h-[100dvh] w-full max-w-full overflow-hidden bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans selection:bg-[#F3E8DE] selection:text-[#8B5E3C]">
       {/* 1. Navbar */}
       <Navbar
         onOpenCart={() => setIsCartDrawerOpen(true)}
@@ -108,33 +108,36 @@ export default function HomePage() {
         wishlistCount={2}
       />
 
-      {/* 2. Hero Section */}
-      <HeroSection
-        onOpenAR={handleOpenDefaultAR}
-        onExploreCollection={handleScrollToProducts}
-      />
+      {/* Main Content Area - internal smooth container with hidden scrollbar, no page overflow */}
+      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar">
+        {/* 2. Hero Section */}
+        <HeroSection
+          onOpenAR={handleOpenDefaultAR}
+          onExploreCollection={handleScrollToProducts}
+        />
 
-      {/* 3. Furniture Categories Grid */}
-      <CategoryGrid categories={CATEGORIES} />
+        {/* 3. Furniture Categories Grid */}
+        <CategoryGrid categories={CATEGORIES} />
 
-      {/* 4. Featured Products (Section 11 Product Cards) */}
-      <FeaturedProducts
-        products={FEATURED_PRODUCTS}
-        onViewInRoom={handleOpenARForProduct}
-        onAddToCart={handleAddToCart}
-      />
+        {/* 4. Featured Products (Section 11 Product Cards) */}
+        <FeaturedProducts
+          products={FEATURED_PRODUCTS}
+          onViewInRoom={handleOpenARForProduct}
+          onAddToCart={handleAddToCart}
+        />
 
-      {/* 5. AR Room Visualization Spotlight Banner */}
-      <ARExperienceBanner onOpenARModal={handleOpenDefaultAR} />
+        {/* 5. AR Room Visualization Spotlight Banner */}
+        <ARExperienceBanner onOpenARModal={handleOpenDefaultAR} />
 
-      {/* 6. Omnichannel Physical Showroom Network */}
-      <OmnichannelSection />
+        {/* 6. Omnichannel Physical Showroom Network */}
+        <OmnichannelSection />
 
-      {/* 7. Testimonials & Verified AR Fit Metrics */}
-      <TestimonialsSection />
+        {/* 7. Testimonials & Verified AR Fit Metrics */}
+        <TestimonialsSection />
 
-      {/* 8. Comprehensive Footer */}
-      <Footer />
+        {/* 8. Comprehensive Footer */}
+        <Footer />
+      </main>
 
       {/* Interactive AR Preview Modal */}
       <ARPreviewModal

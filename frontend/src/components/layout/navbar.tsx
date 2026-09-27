@@ -20,7 +20,8 @@ import {
   LogOut,
   Package,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Palette
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
@@ -227,6 +228,15 @@ export function Navbar({
                         <span>My Orders</span>
                       </Link>
 
+                      <Link
+                        href="/designs"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-[#24211E] hover:bg-[#FAF9F7] transition"
+                      >
+                        <Palette className="w-3.5 h-3.5 text-[#8B5E3C]" />
+                        <span>My Designs</span>
+                      </Link>
+
                       {user.role === 'ADMIN' && (
                         <Link
                           href="/admin"
@@ -299,6 +309,15 @@ export function Navbar({
                 className="text-base py-2 font-medium border-b border-[#E5E0DA]/50 flex items-center justify-between text-[#24211E]"
               >
                 <span>My Orders</span>
+                <ArrowRight className="w-4 h-4 text-[#9B958E]" />
+              </Link>
+
+              <Link
+                href="/designs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-base py-2 font-medium border-b border-[#E5E0DA]/50 flex items-center justify-between text-[#24211E]"
+              >
+                <span>My Saved Designs</span>
                 <ArrowRight className="w-4 h-4 text-[#9B958E]" />
               </Link>
             </div>

@@ -28,10 +28,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} h-full antialiased`}>
-      <body className="min-h-full w-full max-w-full overflow-x-hidden flex flex-col bg-[#FAF9F7] text-[#24211E]">
+    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} h-full w-full overflow-hidden antialiased`}>
+      <body className="h-full h-[100dvh] w-full max-w-full overflow-hidden flex flex-col bg-[#FAF9F7] text-[#24211E]">
         <AuthProvider>
-          {children}
+          <div className="h-full h-[100dvh] w-full max-w-full overflow-hidden flex flex-col">
+            {children}
+          </div>
         </AuthProvider>
       </body>
     </html>

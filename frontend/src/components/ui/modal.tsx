@@ -29,14 +29,10 @@ export function Modal({
     };
 
     if (isOpen) {
-      document.body.style.overflow = "hidden";
       window.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.body.style.overflow = "unset";
     }
 
     return () => {
-      document.body.style.overflow = "unset";
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
