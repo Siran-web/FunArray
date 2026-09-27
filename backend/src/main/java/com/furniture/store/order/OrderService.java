@@ -266,19 +266,73 @@ public class OrderService {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
 
-        if ("CANCELLED".equalsIgnoreCase(order.getStatus())) {
-            throw new BadRequestException("Order is already cancelled");
-        }
-        if ("DELIVERED".equalsIgnoreCase(order.getStatus())) {
-            throw new BadRequestException("Delivered orders cannot be cancelled");
+        return updateOrderStatusInternal(order, "CANCELLED");
+    }
+
+    /**
+     * TICKET-028: Admin/Staff status transition enforcement.
+     * Rejects invalid or illegal state transitions with BadRequestException.
+     */
+    public OrderDto updateOrderStatus(String orderId, String newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+
+        return updateOrderStatusInternal(order, newStatus);
+    }
+
+    private OrderDto updateOrderStatusInternal(Order order, String newStatus) {
+        if (newStatus == null || newStatus.isBlank()) {
+            throw new BadRequestException("New order status is required");
         }
 
-        order.setStatus("CANCELLED");
+        String currentStatus = order.getStatus() != null ? order.getStatus().toUpperCase() : "PENDING";
+        String targetStatus = newStatus.trim().toUpperCase();
+
+        if (currentStatus.equals(targetStatus)) {
+            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+            return toDto(order, items);
+        }
+
+        if ("DELIVERED".equals(currentStatus) || "CANCELLED".equals(currentStatus)) {
+            throw new BadRequestException("Cannot change status from terminal state: " + currentStatus);
+        }
+
+        Map<String, Set<String>> permittedTransitions = Map.of(
+                "PENDING", Set.of("CONFIRMED", "PROCESSING", "CANCELLED"),
+                "PENDING_PAYMENT", Set.of("CONFIRMED", "PROCESSING", "CANCELLED"),
+                "CONFIRMED", Set.of("PROCESSING", "SHIPPED", "CANCELLED"),
+                "PROCESSING", Set.of("SHIPPED", "CANCELLED"),
+                "SHIPPED", Set.of("DELIVERED")
+        );
+
+        Set<String> allowedTargets = permittedTransitions.getOrDefault(currentStatus, Collections.emptySet());
+        if (!allowedTargets.contains(targetStatus)) {
+            throw new BadRequestException("Invalid status transition from " + currentStatus + " to " + targetStatus);
+        }
+
+        order.setStatus(targetStatus);
         order.setUpdatedAt(Instant.now());
         Order updated = orderRepository.save(order);
 
         List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
         return toDto(updated, items);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderDto> getAllOrdersPaged(Pageable pageable) {
+        return orderRepository.findAll(pageable)
+                .map(order -> {
+                    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+                    return toDto(order, items);
+                });
+    }
+
+    @Transactional(readOnly = true)
+    public OrderDto getAdminOrderById(String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        return toDto(order, items);
     }
 
     // ==================== Helper Methods ====================

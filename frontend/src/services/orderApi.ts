@@ -31,4 +31,13 @@ export const orderApi = {
     fetchWithAuth<Order>(`/orders/${id}/cancel`, {
       method: 'POST',
     }),
+
+  updateOrderStatus: (id: string, status: string, reason?: string) =>
+    fetchWithAuth<Order>(`/orders/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reason }),
+    }),
+
+  getAdminOrders: () =>
+    fetchWithAuth<{ content: Order[]; totalElements: number }>('/admin/orders'),
 };

@@ -74,4 +74,28 @@ public class OrderController {
         OrderDto order = orderService.cancelOrder(orderId, principal.getId());
         return ResponseEntity.ok(ApiResponse.ok(order));
     }
+
+    @PatchMapping("/{orderId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'STORE_MANAGER', 'STORE_STAFF')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update order status with state-machine validation (TICKET-028)")
+    public ResponseEntity<ApiResponse<OrderDto>> updateOrderStatus(
+            @PathVariable String orderId,
+            @RequestBody com.furniture.store.order.dto.UpdateOrderStatusRequest request
+    ) {
+        OrderDto order = orderService.updateOrderStatus(orderId, request.status());
+        return ResponseEntity.ok(ApiResponse.ok(order));
+    }
+
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'STORE_MANAGER', 'STORE_STAFF')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Update order status with state-machine validation (TICKET-028)")
+    public ResponseEntity<ApiResponse<OrderDto>> updateOrderStatusPut(
+            @PathVariable String orderId,
+            @RequestBody com.furniture.store.order.dto.UpdateOrderStatusRequest request
+    ) {
+        OrderDto order = orderService.updateOrderStatus(orderId, request.status());
+        return ResponseEntity.ok(ApiResponse.ok(order));
+    }
 }
