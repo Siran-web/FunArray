@@ -22,7 +22,15 @@ import {
   VolumeX,
   Maximize2,
   X,
-  FlipHorizontal
+  FlipHorizontal,
+  Move,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Crosshair,
+  Ruler,
+  Layers
 } from 'lucide-react';
 
 export interface CameraARViewerProps {
@@ -40,6 +48,9 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 }) => {
   const {
     sessionState,
+    surfaceState,
+    surfaceConfidence,
+    placement,
     isSupported,
     isWebXRSupported,
     errorMessage,
@@ -49,21 +60,22 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     stopCameraSession,
     toggleCameraFacing,
     facingMode,
+    placeFurniture,
+    resetPlacement,
+    setRotation,
+    rotateBy,
+    nudgePosition,
+    relockSurface,
   } = useCameraAR();
 
-  const [rotationAngle, setRotationAngle] = useState(0);
-  const [scaleFactor, setScaleFactor] = useState(1);
-  const [isSurfaceLocked, setIsSurfaceLocked] = useState(false);
-  const [furniturePosition, setFurniturePosition] = useState({ x: 0, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
-  const [showQrCode, setShowQrCode] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [activeTab, setActiveTab] = useState<'controls' | 'dimensions'>('controls');
 
   // QuickLook USDZ / SceneViewer GLB URLs
   const glbUrl = product.model3D?.modelUrl || 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb';
   const usdzUrl = product.model3D?.modelUrl?.replace(/\.glb$/i, '.usdz') || glbUrl;
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   // Autostart camera session when mounted if supported
   useEffect(() => {
@@ -76,34 +88,31 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     };
   }, [isSupported]);
 
-  // Simulate surface detection lock after active stream
-  useEffect(() => {
-    if (sessionState === 'active') {
-      const timer = setTimeout(() => {
-        setIsSurfaceLocked(true);
-      }, 1200);
-      return () => clearTimeout(timer);
-    } else {
-      setIsSurfaceLocked(false);
-    }
-  }, [sessionState]);
-
-  // Drag handlers for placing furniture on surface
+  // Drag handlers for placing / nudging furniture on surface
   const handlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
     setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - furniturePosition.x, y: e.clientY - furniturePosition.y };
+    dragStartRef.current = { x: e.clientX - placement.x, y: e.clientY - placement.y };
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
-    setFurniturePosition({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
-    });
+    const newX = e.clientX - dragStartRef.current.x;
+    const newY = e.clientY - dragStartRef.current.y;
+    placeFurniture(newX, newY);
   };
 
   const handlePointerUp = () => {
     setIsDragging(false);
+  };
+
+  // Surface click to place furniture
+  const handleViewportClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left - rect.width / 2;
+    const clickY = e.clientY - rect.top - rect.height / 2;
+    placeFurniture(clickX, clickY);
   };
 
   const handleAddToCart = () => {
@@ -115,11 +124,12 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden bg-[#1A1816] text-[#FAF9F7] border border-[#3A3632] flex flex-col items-center justify-center min-h-[480px]">
+    <div className="relative w-full rounded-2xl overflow-hidden bg-[#1A1816] text-[#FAF9F7] border border-[#3A3632] flex flex-col items-center justify-center min-h-[520px]">
       {/* 1. ACTIVE LIVE CAMERA AR VIEW */}
       {sessionState === 'active' && (
         <div
-          className="relative w-full h-[520px] sm:h-[580px] overflow-hidden select-none touch-none"
+          className="relative w-full h-[560px] sm:h-[620px] overflow-hidden select-none touch-none cursor-crosshair"
+          onClick={handleViewportClick}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
@@ -133,34 +143,47 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             className="absolute inset-0 w-full h-full object-cover"
           />
 
-          {/* Environmental Lighting Shade Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none" />
+          {/* Environmental Gradient Filter */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
 
-          {/* Top Status Bar Overlay */}
-          <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-auto z-20">
-            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span className="font-medium text-white">Live Camera AR</span>
-              <span className="text-white/40">|</span>
-              <span className="text-amber-300 font-semibold">{product.dimensions.widthCm}×{product.dimensions.depthCm} cm</span>
+          {/* Top Status & Surface Detection HUD */}
+          <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-auto z-20 gap-2">
+            <div className="flex flex-wrap items-center gap-2 bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs shadow-lg">
+              <span className={`w-2.5 h-2.5 rounded-full ${
+                surfaceState === 'locked' ? 'bg-emerald-400' :
+                surfaceState === 'detected' ? 'bg-amber-400 animate-pulse' : 'bg-blue-400 animate-ping'
+              }`} />
+              <span className="font-medium text-white">
+                {surfaceState === 'locked' && 'Surface Locked (1:1 Scale)'}
+                {surfaceState === 'detected' && `Floor Detected (${surfaceConfidence}%) • Tap to Place`}
+                {surfaceState === 'searching' && 'Scanning Floor Plane...'}
+              </span>
+              <span className="text-white/30">|</span>
+              <span className="text-amber-300 font-semibold font-mono text-[11px]">
+                {product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={toggleCameraFacing}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCameraFacing();
+                }}
                 title="Switch Camera (Front/Rear)"
-                className="p-2 bg-black/60 backdrop-blur-md hover:bg-black/80 rounded-full text-white border border-white/10 transition-colors"
+                className="p-2 bg-black/70 backdrop-blur-md hover:bg-black/90 rounded-full text-white border border-white/10 transition-colors shadow-md"
               >
                 <FlipHorizontal className="w-4 h-4" />
               </button>
 
               {onClose && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     stopCameraSession();
                     onClose();
                   }}
-                  className="p-2 bg-black/60 backdrop-blur-md hover:bg-black/80 rounded-full text-white border border-white/10 transition-colors"
+                  className="p-2 bg-black/70 backdrop-blur-md hover:bg-black/90 rounded-full text-white border border-white/10 transition-colors shadow-md"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -168,109 +191,200 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
           </div>
 
-          {/* Surface Tracking Reticle Simulation */}
+          {/* Surface Grid Projection & Reticle Overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {!isSurfaceLocked ? (
-              <div className="flex flex-col items-center gap-2 text-white/80 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm border border-white/10">
-                <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-medium">Scanning floor plane with device sensors...</span>
+            {!placement.isPlaced ? (
+              <div className="flex flex-col items-center gap-3">
+                {/* 3D Perspective Plane Grid Visualizer */}
+                <div className="w-72 h-40 border-2 border-dashed border-amber-400/60 rounded-[40%] bg-amber-400/10 [transform:rotateX(65deg)] flex items-center justify-center animate-pulse">
+                  <div className="w-20 h-20 border border-amber-400/80 rounded-full flex items-center justify-center">
+                    <Crosshair className="w-8 h-8 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
+                  </div>
+                </div>
+                <div className="bg-black/80 px-4 py-2 rounded-full backdrop-blur-md border border-amber-400/40 text-amber-200 text-xs font-semibold shadow-xl flex items-center gap-2">
+                  <Crosshair className="w-4 h-4 text-amber-400 animate-bounce" />
+                  <span>Tap anywhere on the floor to position {product.name}</span>
+                </div>
               </div>
             ) : (
-              <div className="absolute bottom-20 w-72 h-36 border border-emerald-400/40 rounded-[50%] bg-emerald-400/5 [transform:rotateX(65deg)] flex items-center justify-center animate-pulse">
-                <div className="w-12 h-12 border border-emerald-400/60 rounded-full" />
+              /* Floor Contact Shadow when placed */
+              <div
+                className="absolute transition-transform duration-75 pointer-events-none"
+                style={{
+                  left: `calc(50% + ${placement.x}px)`,
+                  top: `calc(58% + ${placement.y}px)`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                <div className="w-64 h-24 bg-black/70 rounded-[50%] blur-md [transform:rotateX(60deg)] scale-110" />
+                {/* Detected plane bounds */}
+                <div className="absolute inset-0 border border-emerald-400/40 rounded-[50%] [transform:rotateX(60deg)] animate-pulse" />
               </div>
             )}
           </div>
 
           {/* Placed Interactive 3D Furniture Projection */}
-          <div
-            onPointerDown={handlePointerDown}
-            className="absolute z-10 cursor-grab active:cursor-grabbing transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 drop-shadow-[0_25px_25px_rgba(0,0,0,0.7)]"
-            style={{
-              left: `calc(50% + ${furniturePosition.x}px)`,
-              top: `calc(55% + ${furniturePosition.y}px)`,
-              transform: `scale(${scaleFactor}) rotateY(${rotationAngle}deg)`,
-            }}
-          >
-            <div className="relative group">
-              <img
-                src={product.images[0]?.imageUrl}
-                alt={product.name}
-                className="max-h-56 max-w-[280px] sm:max-h-64 sm:max-w-sm object-contain filter drop-shadow-2xl"
-                draggable={false}
-              />
-              {/* Calibration badge */}
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md border border-amber-500/40 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap opacity-90 shadow-md">
-                1:1 Scale Placed
+          {placement.isPlaced && (
+            <div
+              onPointerDown={handlePointerDown}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute z-10 cursor-grab active:cursor-grabbing transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 drop-shadow-[0_30px_30px_rgba(0,0,0,0.8)]"
+              style={{
+                left: `calc(50% + ${placement.x}px)`,
+                top: `calc(54% + ${placement.y}px)`,
+                transform: `scale(${placement.scale}) rotateY(${placement.rotation}deg)`,
+              }}
+            >
+              <div className="relative group">
+                <img
+                  src={product.images[0]?.imageUrl}
+                  alt={product.name}
+                  className="max-h-60 max-w-[290px] sm:max-h-72 sm:max-w-md object-contain filter drop-shadow-2xl"
+                  draggable={false}
+                />
+                
+                {/* Real-Scale Indicator Tag */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-emerald-500/50 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-lg flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  <span>Placed on Surface • {placement.rotation}°</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Privacy & Zero Storage Notice */}
-          <div className="absolute bottom-20 inset-x-4 flex justify-center pointer-events-none">
-            <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-[11px] text-white/70 px-3 py-1 rounded-full border border-white/10">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Camera feed processed in browser RAM only • No footage is stored</span>
+          {/* Bottom Floating Control Panel */}
+          <div className="absolute bottom-4 inset-x-4 flex flex-col gap-2 z-20 pointer-events-auto">
+            {/* Fine Position & Rotation Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-black/80 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-2xl">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    rotateBy(-45);
+                  }}
+                  className="text-white hover:bg-white/15 text-xs px-2.5 h-8 gap-1"
+                >
+                  <RotateCw className="w-3.5 h-3.5 [transform:scaleX(-1)]" />
+                  <span>-45°</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    rotateBy(45);
+                  }}
+                  className="text-white hover:bg-white/15 text-xs px-2.5 h-8 gap-1 font-semibold text-amber-300"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>+45° ({placement.rotation}°)</span>
+                </Button>
+
+                <div className="h-4 w-px bg-white/20 mx-1" />
+
+                {/* Micro-Nudge Controls */}
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgePosition(-10, 0);
+                    }}
+                    title="Nudge Left"
+                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgePosition(0, -10);
+                    }}
+                    title="Nudge Forward"
+                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgePosition(0, 10);
+                    }}
+                    title="Nudge Backward"
+                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nudgePosition(10, 0);
+                    }}
+                    title="Nudge Right"
+                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetPlacement();
+                  }}
+                  className="text-stone-300 hover:text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reposition</span>
+                </Button>
+
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToCart();
+                  }}
+                  size="sm"
+                  className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white font-semibold text-xs px-4 h-9 shadow-lg gap-1.5"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>{isAddedToCart ? 'Added to Bag!' : `Add to Cart • ${formatPrice(product.basePrice)}`}</span>
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Floating Action Controls */}
-          <div className="absolute bottom-4 inset-x-4 flex items-center justify-between gap-2 z-20 pointer-events-auto">
-            <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setRotationAngle((a) => (a + 45) % 360)}
-                className="text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
-              >
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>Rotate ({rotationAngle}°)</span>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setFurniturePosition({ x: 0, y: 20 });
-                  setRotationAngle(0);
-                  setScaleFactor(1);
-                }}
-                className="text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleAddToCart}
-                size="sm"
-                className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white font-medium text-xs px-4 h-9 shadow-lg gap-1.5"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>{isAddedToCart ? 'Added to Cart!' : `Add to Cart • ${formatPrice(product.basePrice)}`}</span>
-              </Button>
+            {/* Privacy Guarantee Footer Tag */}
+            <div className="flex items-center justify-between text-[10px] text-stone-400 px-2">
+              <div className="flex items-center gap-1 text-emerald-400">
+                <ShieldCheck className="w-3 h-3" />
+                <span>Zero persistence • Live frames processed in RAM only</span>
+              </div>
+              <span>Drag or tap to adjust position on detected surface</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. REQUESTING CAMERA PERMISSION STATE */}
+      {/* 2. REQUESTING CAMERA PERMISSION */}
       {sessionState === 'requesting' && (
         <div className="p-8 text-center space-y-4 max-w-md">
           <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto animate-pulse">
             <Camera className="w-8 h-8 text-amber-500" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-white">Requesting Camera Access</h3>
+            <h3 className="text-lg font-semibold text-white">Initializing Surface Detection</h3>
             <p className="text-xs text-stone-400">
-              Please click <strong>&quot;Allow&quot;</strong> in your browser prompt so FunArray can project {product.name} at true scale onto your floor.
+              Please click <strong>&quot;Allow&quot;</strong> in your browser prompt so FunArray can scan your floor plane and place {product.name} at true scale.
             </p>
           </div>
           <div className="p-3 bg-stone-900 rounded-xl border border-stone-800 text-[11px] text-stone-400 flex items-center gap-2 text-left">
             <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
-            <span>Privacy Promise: Video streams stay strictly inside your browser tab and are never recorded or sent to any cloud server.</span>
+            <span>Zero Persistence Guarantee: Camera frames are never recorded or stored on any server.</span>
           </div>
         </div>
       )}
@@ -284,7 +398,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
           <div className="space-y-1.5">
             <h3 className="text-base font-semibold text-white">Camera Access Denied</h3>
             <p className="text-xs text-stone-400 leading-relaxed">
-              Camera permissions were blocked in your browser. You can enable camera access in your browser site settings or switch to our 2D/3D Room Photo Upload mode.
+              Camera permissions were blocked. You can allow camera access in your browser site settings or switch to our 2D/3D Room Photo Upload mode.
             </p>
           </div>
 
@@ -322,13 +436,13 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 
           <div className="space-y-2">
             <Badge variant="ar" className="border-amber-500/40 text-amber-400 text-[11px]">
-              Spatial Augmented Reality
+              Spatial Surface Detection AR
             </Badge>
             <h3 className="text-xl font-serif font-medium text-white">
-              Experience {product.name} in AR
+              Place {product.name} on Your Floor
             </h3>
             <p className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
-              Scan your space to view this piece with exact physical dimensions (<strong>{product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm</strong>) and true architectural scale.
+              Scan your space to detect horizontal planes and view this piece with exact physical dimensions (<strong>{product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm</strong>).
             </p>
           </div>
 
@@ -339,8 +453,8 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             >
               <Camera className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-semibold">Launch Camera AR</div>
-                <div className="text-[10px] text-amber-200">Browser Viewfinder</div>
+                <div className="font-semibold">Launch Surface AR</div>
+                <div className="text-[10px] text-amber-200">Live Camera Reticle</div>
               </div>
             </Button>
 

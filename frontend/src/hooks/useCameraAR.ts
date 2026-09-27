@@ -4,6 +4,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type ARSupportState = 'checking' | 'supported' | 'unsupported';
 export type ARSessionState = 'idle' | 'requesting' | 'active' | 'denied' | 'unsupported' | 'error';
+export type ARSurfaceState = 'searching' | 'detected' | 'locked' | 'lost';
+
+export interface ARPlacementState {
+  isPlaced: boolean;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  elevationCm: number;
+}
 
 export interface CameraAROptions {
   preferredFacingMode?: 'environment' | 'user';
@@ -14,6 +24,9 @@ export interface CameraAROptions {
 
 export interface UseCameraARReturn {
   sessionState: ARSessionState;
+  surfaceState: ARSurfaceState;
+  surfaceConfidence: number;
+  placement: ARPlacementState;
   isSupported: boolean;
   isWebXRSupported: boolean;
   errorMessage: string | null;
@@ -24,6 +37,12 @@ export interface UseCameraARReturn {
   toggleCameraFacing: () => Promise<void>;
   facingMode: 'environment' | 'user';
   hasPermission: boolean;
+  placeFurniture: (x?: number, y?: number) => void;
+  resetPlacement: () => void;
+  setRotation: (deg: number) => void;
+  rotateBy: (deltaDeg: number) => void;
+  nudgePosition: (dx: number, dy: number) => void;
+  relockSurface: () => void;
 }
 
 export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
@@ -35,11 +54,22 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
   } = options;
 
   const [sessionState, setSessionState] = useState<ARSessionState>('idle');
+  const [surfaceState, setSurfaceState] = useState<ARSurfaceState>('searching');
+  const [surfaceConfidence, setSurfaceConfidence] = useState<number>(0);
   const [isSupported, setIsSupported] = useState<boolean>(true);
   const [isWebXRSupported, setIsWebXRSupported] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>(preferredFacingMode);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
+
+  const [placement, setPlacement] = useState<ARPlacementState>({
+    isPlaced: false,
+    x: 0,
+    y: 20,
+    rotation: 0,
+    scale: 1,
+    elevationCm: 0,
+  });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -64,6 +94,25 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     checkCapabilities();
   }, []);
 
+  // Surface detection simulation & plane tracking cycle
+  useEffect(() => {
+    let confidenceTimer: NodeJS.Timeout;
+    if (sessionState === 'active') {
+      setSurfaceState('searching');
+      setSurfaceConfidence(35);
+
+      confidenceTimer = setTimeout(() => {
+        setSurfaceConfidence(98);
+        setSurfaceState('detected');
+      }, 1000);
+    } else {
+      setSurfaceState('searching');
+      setSurfaceConfidence(0);
+    }
+
+    return () => clearTimeout(confidenceTimer);
+  }, [sessionState]);
+
   // Stop camera feed and release media hardware cleanly
   const stopCameraSession = useCallback(() => {
     if (streamRef.current) {
@@ -87,6 +136,15 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
 
     setStream(null);
     setSessionState('idle');
+    setSurfaceState('searching');
+    setPlacement({
+      isPlaced: false,
+      x: 0,
+      y: 20,
+      rotation: 0,
+      scale: 1,
+      elevationCm: 0,
+    });
     if (onSessionEnd) onSessionEnd();
   }, [onSessionEnd]);
 
@@ -102,22 +160,20 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     setSessionState('requesting');
     setErrorMessage(null);
 
-    // First try preferred facing mode (environment rear camera for AR)
     const constraints: MediaStreamConstraints = {
       video: {
         facingMode: { ideal: facingMode },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
-      audio: false, // Ensure microphone is never requested
+      audio: false,
     };
 
     try {
       let mediaStream: MediaStream;
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (modeErr) {
-        // Fallback to generic video constraints if specific facing mode fails
+      } catch {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -161,20 +217,71 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     }
   }, [facingMode, onSessionStart, onError]);
 
-  // Toggle between environment and user facing cameras
+  // Surface placement & manipulation helpers
+  const placeFurniture = useCallback((x?: number, y?: number) => {
+    setPlacement((prev) => ({
+      ...prev,
+      isPlaced: true,
+      x: typeof x === 'number' ? x : prev.x,
+      y: typeof y === 'number' ? y : prev.y,
+    }));
+    setSurfaceState('locked');
+  }, []);
+
+  const resetPlacement = useCallback(() => {
+    setPlacement({
+      isPlaced: false,
+      x: 0,
+      y: 20,
+      rotation: 0,
+      scale: 1,
+      elevationCm: 0,
+    });
+    setSurfaceState('detected');
+  }, []);
+
+  const setRotation = useCallback((deg: number) => {
+    setPlacement((prev) => ({
+      ...prev,
+      rotation: ((deg % 360) + 360) % 360,
+    }));
+  }, []);
+
+  const rotateBy = useCallback((deltaDeg: number) => {
+    setPlacement((prev) => ({
+      ...prev,
+      rotation: (((prev.rotation + deltaDeg) % 360) + 360) % 360,
+    }));
+  }, []);
+
+  const nudgePosition = useCallback((dx: number, dy: number) => {
+    setPlacement((prev) => ({
+      ...prev,
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
+  }, []);
+
+  const relockSurface = useCallback(() => {
+    setSurfaceState('searching');
+    setSurfaceConfidence(40);
+    setTimeout(() => {
+      setSurfaceConfidence(99);
+      setSurfaceState('detected');
+    }, 800);
+  }, []);
+
   const toggleCameraFacing = useCallback(async () => {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(nextMode);
     if (sessionState === 'active') {
       stopCameraSession();
-      // Allow slight tick for hardware release
       setTimeout(() => {
         startCameraSession();
       }, 100);
     }
   }, [facingMode, sessionState, stopCameraSession, startCameraSession]);
 
-  // Cleanup on unmount — ensures no camera tracks remain running
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -191,6 +298,9 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
 
   return {
     sessionState,
+    surfaceState,
+    surfaceConfidence,
+    placement,
     isSupported,
     isWebXRSupported,
     errorMessage,
@@ -201,5 +311,11 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     toggleCameraFacing,
     facingMode,
     hasPermission,
+    placeFurniture,
+    resetPlacement,
+    setRotation,
+    rotateBy,
+    nudgePosition,
+    relockSurface,
   };
 }

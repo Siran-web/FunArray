@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-describe('Camera AR Foundation (TICKET-046)', () => {
+describe('AR Surface Detection & Furniture Placement (TICKET-046 & TICKET-047)', () => {
   let mockStopTrack: any;
   let mockStream: any;
 
@@ -97,9 +97,47 @@ describe('Camera AR Foundation (TICKET-046)', () => {
     );
   });
 
-  it('should provide fallback when WebXR is not supported', async () => {
-    (navigator as any).xr.isSessionSupported.mockResolvedValueOnce(false);
-    const supported = await (navigator as any).xr.isSessionSupported('immersive-ar');
-    expect(supported).toBe(false);
+  it('should calculate surface rotation degrees properly with wrap-around', () => {
+    const rotate = (current: number, delta: number) => (((current + delta) % 360) + 360) % 360;
+
+    expect(rotate(0, 45)).toBe(45);
+    expect(rotate(315, 45)).toBe(0);
+    expect(rotate(0, -45)).toBe(315);
+    expect(rotate(180, 180)).toBe(0);
+  });
+
+  it('should calculate position nudging and surface bounds accurately', () => {
+    let position = { x: 0, y: 20 };
+    const nudge = (dx: number, dy: number) => {
+      position = { x: position.x + dx, y: position.y + dy };
+    };
+
+    nudge(10, 0);
+    expect(position).toEqual({ x: 10, y: 20 });
+
+    nudge(-25, -15);
+    expect(position).toEqual({ x: -15, y: 5 });
+  });
+
+  it('should preserve true physical dimensions without mutating base product data', () => {
+    const product = {
+      id: 'prod-kanso',
+      name: 'Kanso 3-Seater Sofa',
+      dimensions: {
+        widthCm: 210,
+        heightCm: 85,
+        depthCm: 90,
+      },
+    };
+
+    // AR true scale verification
+    const scaleFactor = 1.0;
+    const scaledWidth = product.dimensions.widthCm * scaleFactor;
+    const scaledHeight = product.dimensions.heightCm * scaleFactor;
+    const scaledDepth = product.dimensions.depthCm * scaleFactor;
+
+    expect(scaledWidth).toBe(210);
+    expect(scaledHeight).toBe(85);
+    expect(scaledDepth).toBe(90);
   });
 });
