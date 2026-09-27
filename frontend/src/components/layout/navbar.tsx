@@ -42,6 +42,7 @@ export function Navbar({
   const { totalCount: dynamicCartCount } = useCart();
   const { totalCount: dynamicWishlistCount } = useWishlist();
 
+  const [mounted, setMounted] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
@@ -49,12 +50,18 @@ export function Navbar({
   const [searchQuery, setSearchQuery] = React.useState("");
 
   React.useEffect(() => {
+    setMounted(true);
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const cartCount = mounted ? dynamicCartCount : 0;
+  const wishlistCount = mounted ? dynamicWishlistCount : 0;
+  const authed = mounted && isAuthenticated;
+  const currentUser = mounted ? user : null;
 
   const navLinks = [
     { name: "Living Room", href: "/products?category=living-room" },
@@ -181,10 +188,10 @@ export function Navbar({
               className="p-2.5 rounded-[10px] text-[#6F6A64] hover:text-[#C84B4B] hover:bg-[#F4F2EF] transition-colors relative cursor-pointer"
               aria-label="View Wishlist"
             >
-              <Heart className={`w-5 h-5 transition-transform hover:scale-110 ${dynamicWishlistCount > 0 ? "text-[#C84B4B]" : ""}`} />
-              {dynamicWishlistCount > 0 && (
+              <Heart className={`w-5 h-5 transition-transform hover:scale-110 ${wishlistCount > 0 ? "text-[#C84B4B]" : ""}`} />
+              {wishlistCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#C84B4B] text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-in zoom-in duration-200">
-                  {dynamicWishlistCount}
+                  {wishlistCount}
                 </span>
               )}
             </Link>
@@ -202,25 +209,25 @@ export function Navbar({
               aria-label="View Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5 transition-transform hover:scale-110" />
-              {dynamicCartCount > 0 && (
+              {cartCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#8B5E3C] text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-in zoom-in duration-200">
-                  {dynamicCartCount}
+                  {cartCount}
                 </span>
               )}
             </Link>
 
             {/* Account Dropdown or Sign In */}
             <div className="relative pl-1">
-              {isAuthenticated && user ? (
+              {authed && currentUser ? (
                 <div>
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#E5E0DA] bg-white text-[#24211E] text-xs font-semibold hover:border-[#8B5E3C] transition shadow-2xs"
                   >
                     <div className="w-5 h-5 rounded-full bg-[#8B5E3C] text-white text-[10px] flex items-center justify-center font-bold">
-                      {user.firstName ? user.firstName[0].toUpperCase() : 'U'}
+                      {currentUser.firstName ? currentUser.firstName[0].toUpperCase() : 'U'}
                     </div>
-                    <span className="max-w-[80px] truncate">{user.firstName || 'Account'}</span>
+                    <span className="max-w-[80px] truncate">{currentUser.firstName || 'Account'}</span>
                     <ChevronDown className="w-3 h-3 text-[#6F6A64]" />
                   </button>
 
@@ -230,8 +237,8 @@ export function Navbar({
                       className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E0DA] rounded-2xl shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
                     >
                       <div className="px-4 py-2 border-b border-[#F4F2EF]">
-                        <p className="font-semibold text-[#24211E] truncate">{user.firstName} {user.lastName}</p>
-                        <p className="text-[11px] text-[#9B958E] truncate">{user.email}</p>
+                        <p className="font-semibold text-[#24211E] truncate">{currentUser.firstName} {currentUser.lastName}</p>
+                        <p className="text-[11px] text-[#9B958E] truncate">{currentUser.email}</p>
                       </div>
 
                       <Link
@@ -249,7 +256,7 @@ export function Navbar({
                         className="flex items-center gap-2 px-4 py-2 text-[#24211E] hover:bg-[#FAF9F7] transition"
                       >
                         <Heart className="w-3.5 h-3.5 text-[#C84B4B]" />
-                        <span>My Wishlist ({dynamicWishlistCount})</span>
+                        <span>My Wishlist ({wishlistCount})</span>
                       </Link>
 
                       <Link
@@ -261,7 +268,7 @@ export function Navbar({
                         <span>My Designs</span>
                       </Link>
 
-                      {user.role === 'ADMIN' && (
+                      {currentUser.role === 'ADMIN' && (
                         <Link
                           href="/admin"
                           onClick={() => setUserDropdownOpen(false)}

@@ -28,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} min-h-full w-full antialiased`}>
-      <body className="min-h-screen w-full flex flex-col bg-[#FAF9F7] text-[#24211E]">
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${dmSerifDisplay.variable} min-h-full w-full antialiased`}>
+      <body suppressHydrationWarning className="min-h-screen w-full flex flex-col bg-[#FAF9F7] text-[#24211E]">
         <AuthProvider>
           <div className="min-h-screen w-full flex flex-col">
             {children}
