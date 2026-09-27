@@ -133,16 +133,18 @@ export default function CheckoutPage() {
         shippingFee: shipping,
         totalAmount: calculatedTotal,
         totalItems: items.reduce((acc, i) => acc + i.quantity, 0),
+        eligibleForFreeShipping: calculatedSubtotal >= 50000,
+        freeShippingThreshold: 50000,
         items: items.map((i) => ({
           id: i.id,
           productId: i.productId,
+          productName: i.name,
           variantId: i.variantId,
-          name: i.name,
           unitPrice: i.price,
           quantity: i.quantity,
           totalPrice: i.price * i.quantity,
-          color: i.selectedColor,
-          material: i.material,
+          variantColor: i.selectedColor,
+          variantMaterial: i.material,
           imageUrl: i.imageUrl || '',
         })),
       });
@@ -274,12 +276,13 @@ export default function CheckoutPage() {
       }
 
       // Clear Cart & Close Modal
+      const finalOrder: Order = createdOrder;
       clearCart();
       setShowPaymentModal(false);
-      setCompletedOrder(createdOrder);
+      setCompletedOrder(finalOrder);
 
       // Redirect to order confirmation
-      router.push(`/orders/${createdOrder.id}`);
+      router.push(`/orders/${finalOrder.id}`);
     } catch (err: any) {
       console.error('Payment execution error:', err);
       setErrorMessage(err?.message || 'Payment processing failed. Please try again.');

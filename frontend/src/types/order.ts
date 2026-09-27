@@ -27,7 +27,12 @@ export interface Order {
   tax: number;
   discount: number;
   totalAmount: number;
+  paymentMethod?: string;
+  paymentStatus?: PaymentStatus | string;
   shippingAddress?: Address;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
