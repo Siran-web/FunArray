@@ -50,6 +50,7 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
     private final InventoryService inventoryService;
+    private final com.furniture.store.payment.repository.PaymentRepository paymentRepository;
 
     public OrderService(
             OrderRepository orderRepository,
@@ -59,7 +60,8 @@ public class OrderService {
             CartService cartService,
             AddressRepository addressRepository,
             UserRepository userRepository,
-            InventoryService inventoryService
+            InventoryService inventoryService,
+            com.furniture.store.payment.repository.PaymentRepository paymentRepository
     ) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
@@ -69,6 +71,7 @@ public class OrderService {
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
         this.inventoryService = inventoryService;
+        this.paymentRepository = paymentRepository;
     }
 
     /**
@@ -380,6 +383,27 @@ public class OrderService {
         AddressDto addressDto = order.getShippingAddress() != null ?
                 AddressDto.fromEntity(order.getShippingAddress()) : null;
 
+        String customerName = null;
+        String customerEmail = null;
+        String customerPhone = null;
+        if (order.getUser() != null) {
+            customerName = (order.getUser().getFirstName() != null ? order.getUser().getFirstName() : "") +
+                    (order.getUser().getLastName() != null ? " " + order.getUser().getLastName() : "");
+            customerEmail = order.getUser().getEmail();
+            customerPhone = order.getUser().getPhone();
+        }
+
+        String paymentStatus = "PAID";
+        String paymentMethod = "CREDIT_CARD";
+        if (paymentRepository != null && order.getId() != null) {
+            var paymentOpt = paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId());
+            if (paymentOpt.isPresent()) {
+                var payment = paymentOpt.get();
+                paymentStatus = payment.getStatus() != null ? payment.getStatus() : "PAID";
+                paymentMethod = payment.getProvider() != null ? payment.getProvider() : "RAZORPAY";
+            }
+        }
+
         return new OrderDto(
                 order.getId(),
                 order.getOrderNumber(),
@@ -391,6 +415,11 @@ public class OrderService {
                 order.getTotalAmount(),
                 addressDto,
                 itemDtos,
+                customerName,
+                customerEmail,
+                customerPhone,
+                paymentStatus,
+                paymentMethod,
                 order.getCreatedAt(),
                 order.getUpdatedAt()
         );

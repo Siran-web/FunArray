@@ -1,5 +1,7 @@
 export interface Address {
   id: string;
+  fullName?: string;
+  phone?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
@@ -10,7 +12,11 @@ export interface Address {
   createdAt?: string;
 }
 
+export type AddressDto = Address;
+
 export interface CreateAddressPayload {
+  fullName?: string;
+  phone?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;

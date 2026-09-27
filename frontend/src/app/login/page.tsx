@@ -100,7 +100,19 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-[#E5E0DA] text-center space-y-3">
+          <div className="mt-6 pt-5 border-t border-[#E5E0DA] text-center space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('funarray47@gmail.com');
+                setPassword('Admin@123');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-[#F3E8DE] hover:bg-[#ebd9cb] text-[#8B5E3C] text-xs font-semibold transition cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#D49A6A]" />
+              <span>Fill Administrator (funarray47@gmail.com)</span>
+            </button>
+
             <p className="text-xs text-[#6F6A64]">
               Don&apos;t have an account yet?{' '}
               <Link href="/register" className="text-[#8B5E3C] hover:text-[#634027] font-semibold underline underline-offset-2">

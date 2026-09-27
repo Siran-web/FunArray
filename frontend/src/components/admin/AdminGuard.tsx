@@ -70,9 +70,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
                   setAuth(
                     {
                       id: 'admin-preview-id',
-                      email: 'admin@furniture.com',
-                      firstName: 'Design',
-                      lastName: 'Administrator',
+                      email: 'funarray47@gmail.com',
+                      firstName: 'Atelier',
+                      lastName: 'Admin',
                       role: 'ADMIN',
                       status: 'ACTIVE',
                     },
