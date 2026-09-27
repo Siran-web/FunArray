@@ -61,7 +61,11 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public ProductReviewSummaryDto getProductReviews(String productId) {
         if (!productRepository.existsById(productId)) {
-            throw new ResourceNotFoundException("Product not found with id: " + productId);
+            Map<Integer, Long> emptyDist = new HashMap<>();
+            for (int i = 1; i <= 5; i++) {
+                emptyDist.put(i, 0L);
+            }
+            return new ProductReviewSummaryDto(0.0, 0, emptyDist, List.of());
         }
 
         List<Review> reviews = reviewRepository.findByProductIdAndStatus(

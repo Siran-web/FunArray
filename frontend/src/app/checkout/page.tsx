@@ -685,8 +685,8 @@ export default function CheckoutPage() {
 
       {/* Interactive Payment Gateway Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E0DA] rounded-[20px] p-6 sm:p-8 max-w-md w-full shadow-modal space-y-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-white border border-[#E5E0DA] rounded-[20px] p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-modal space-y-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[#E5E0DA] pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#8B5E3C]">Razorpay Secure Gateway</span>
@@ -806,8 +806,8 @@ export default function CheckoutPage() {
 
       {/* New Address Modal */}
       {showNewAddressModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E0DA] rounded-[20px] p-6 sm:p-8 max-w-lg w-full shadow-modal space-y-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-white border border-[#E5E0DA] rounded-[20px] p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-modal space-y-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[#E5E0DA] pb-3">
               <h3 className="font-serif text-xl font-medium text-[#24211E]">Add New Shipping Address</h3>
               <button

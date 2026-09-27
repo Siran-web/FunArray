@@ -43,12 +43,12 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         className={cn(
-          "w-full max-w-lg bg-white rounded-[20px] shadow-modal border border-[#E5E0DA] overflow-hidden p-6 relative animate-in zoom-in-95 duration-200",
+          "w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-[20px] shadow-modal border border-[#E5E0DA] p-6 relative animate-in zoom-in-95 duration-200",
           className
         )}
         onClick={(e) => e.stopPropagation()}

@@ -99,7 +99,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="h-full h-[100dvh] w-full max-w-full overflow-hidden bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans selection:bg-[#F3E8DE] selection:text-[#8B5E3C]">
+    <div className="min-h-screen w-full bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans selection:bg-[#F3E8DE] selection:text-[#8B5E3C]">
       {/* 1. Navbar */}
       <Navbar
         onOpenCart={() => setIsCartDrawerOpen(true)}
@@ -108,8 +108,8 @@ export default function HomePage() {
         wishlistCount={2}
       />
 
-      {/* Main Content Area - internal smooth container with hidden scrollbar, no page overflow */}
-      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar">
+      {/* Main Content Area */}
+      <main className="flex-1 w-full">
         {/* 2. Hero Section */}
         <HeroSection
           onOpenAR={handleOpenDefaultAR}

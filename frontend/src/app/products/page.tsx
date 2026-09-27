@@ -138,7 +138,7 @@ export default function ProductListingPage() {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="h-full h-[100dvh] w-full max-w-full overflow-hidden bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-[#FAF9F7] text-[#24211E] flex flex-col font-sans">
       {/* 1. Global Navigation */}
       <Navbar
         onOpenCart={() => setIsCartDrawerOpen(true)}
@@ -147,8 +147,8 @@ export default function ProductListingPage() {
         wishlistCount={2}
       />
 
-      {/* Internal scrollable viewport without browser scrollbars */}
-      <div className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col">
+      {/* Main content wrapper */}
+      <div className="flex-1 w-full flex flex-col">
         {/* 2. Breadcrumb & Header */}
       <section className="bg-white border-b border-[#E5E0DA] py-8">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12 space-y-4">
