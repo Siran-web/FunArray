@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
 import { Heart, Star, Box, Check, ShoppingBag } from "lucide-react";
 
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useCartStore } from "@/store/cartStore";
+
 export interface ProductCardProps {
   product: Product;
   onViewInRoom?: (product: Product) => void;
@@ -22,7 +25,9 @@ export function ProductCard({
   onAddToCart,
   priorityImage = false,
 }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = React.useState(false);
+  const isInWishlist = useWishlistStore((state) => state.items.some((i) => i.id === product.id));
+  const toggleWishlist = useWishlistStore((state) => state.toggleItem);
+  const addItemToCartStore = useCartStore((state) => state.addItem);
   const [isAdded, setIsAdded] = React.useState(false);
 
   const primaryImage =
@@ -36,8 +41,25 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     setIsAdded(true);
+    addItemToCartStore({
+      id: `${product.id}-${product.variants[0]?.id || 'default'}`,
+      productId: product.id,
+      name: product.name,
+      price: product.basePrice,
+      quantity: 1,
+      imageUrl: primaryImage,
+      selectedColor: product.variants[0]?.color || 'Default Finish',
+      material: product.material,
+      dimensions: product.dimensions,
+    });
     if (onAddToCart) onAddToCart(product);
     setTimeout(() => setIsAdded(false), 1500);
+  };
+
+  const handleWishlistToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product);
   };
 
   const handleViewInRoom = (e: React.MouseEvent) => {
@@ -77,17 +99,13 @@ export function ProductCard({
         {/* Wishlist Button */}
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsWishlisted(!isWishlisted);
-          }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          onClick={handleWishlistToggle}
+          aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-xs flex items-center justify-center text-[#6F6A64] hover:text-[#C84B4B] shadow-sm hover:scale-110 active:scale-95 transition-all z-10 cursor-pointer"
         >
           <Heart
             className={`w-4 h-4 transition-colors ${
-              isWishlisted ? "fill-[#C84B4B] text-[#C84B4B]" : ""
+              isInWishlist ? "fill-[#C84B4B] text-[#C84B4B]" : ""
             }`}
           />
         </button>

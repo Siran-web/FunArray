@@ -17,6 +17,8 @@ import { ProductReviewSummary, Review } from "@/types/review";
 import { useAuth } from "@/hooks/useAuth";
 import { FEATURED_PRODUCTS } from "@/data/mock-products";
 import { formatPrice } from "@/lib/utils";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useCartStore } from "@/store/cartStore";
 import {
   Heart,
   Star,
@@ -51,6 +53,9 @@ interface ProductDetailViewProps {
 export function ProductDetailView({ initialProduct, productId }: ProductDetailViewProps) {
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const toggleWishlist = useWishlistStore((state) => state.toggleItem);
+  const addItemToCartStore = useCartStore((state) => state.addItem);
 
   const [product, setProduct] = React.useState<Product | null>(initialProduct);
   const [selectedVariant, setSelectedVariant] = React.useState<ProductVariant | null>(
@@ -58,8 +63,9 @@ export function ProductDetailView({ initialProduct, productId }: ProductDetailVi
   );
   const [activeImageIndex, setActiveImageIndex] = React.useState(0);
   const [quantity, setQuantity] = React.useState(1);
-  const [isWishlisted, setIsWishlisted] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"specs" | "craft" | "reviews" | "delivery">("specs");
+
+  const isWishlisted = product ? wishlistItems.some((i) => i.id === product.id) : false;
 
   // Reviews State
   const [reviewsSummary, setReviewsSummary] = React.useState<ProductReviewSummary | null>(null);
@@ -171,6 +177,21 @@ export function ProductDetailView({ initialProduct, productId }: ProductDetailVi
       ? (targetProduct.variants[0]?.color || "Standard Finish")
       : (selectedVariant?.color || "Standard Finish");
 
+    const price = targetProduct ? targetProduct.basePrice : currentPrice;
+    const primaryImg = p.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80";
+
+    addItemToCartStore({
+      id: `${p.id}-${color}`,
+      productId: p.id,
+      name: p.name,
+      price: price,
+      quantity: qty,
+      imageUrl: primaryImg,
+      selectedColor: color,
+      material: p.material,
+      dimensions: p.dimensions,
+    });
+
     setCartItems((prev) => {
       const existing = prev.find((item) => item.product.id === p.id);
       if (existing) {
@@ -200,8 +221,6 @@ export function ProductDetailView({ initialProduct, productId }: ProductDetailVi
       <Navbar
         onOpenCart={() => setIsCartDrawerOpen(true)}
         onOpenARPreview={() => setIsARModalOpen(true)}
-        cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
-        wishlistCount={isWishlisted ? 3 : 2}
       />
 
       {/* 2. Breadcrumbs Bar */}
@@ -246,8 +265,8 @@ export function ProductDetailView({ initialProduct, productId }: ProductDetailVi
 
               {/* Wishlist Heart Toggle */}
               <button
-                onClick={() => setIsWishlisted(!isWishlisted)}
-                aria-label="Save to Wishlist"
+                onClick={() => toggleWishlist(product)}
+                aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                 className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-xs flex items-center justify-center text-[#6F6A64] hover:text-[#C84B4B] shadow-sm hover:scale-110 active:scale-95 transition-all z-10 cursor-pointer"
               >
                 <Heart className={`w-5 h-5 ${isWishlisted ? "fill-[#C84B4B] text-[#C84B4B]" : ""}`} />

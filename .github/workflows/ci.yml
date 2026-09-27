@@ -60,6 +60,10 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Run Frontend Automated Tests
+        working-directory: ./frontend
+        run: npm test
+
       - name: Build Next.js Web App
         working-directory: ./frontend
         run: npm run build

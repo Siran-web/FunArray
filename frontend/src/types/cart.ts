@@ -6,7 +6,14 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
-  sku: string;
+  sku?: string;
+  selectedColor?: string;
+  material?: string;
+  dimensions?: {
+    widthCm: number;
+    heightCm: number;
+    depthCm: number;
+  };
 }
 
 export interface Cart {
