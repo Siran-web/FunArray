@@ -74,6 +74,19 @@ const CATALOG_ITEMS: Omit<PlacedFurniture, 'id'>[] = [
     color: 'charcoal',
     material: 'Matte Steel & Oak',
   },
+  {
+    productId: 'prod-oak-wardrobe',
+    name: 'Scandinavian 2-Door Wardrobe',
+    price: 799.99,
+    modelUrl: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb',
+    previewImageUrl: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=400&q=80',
+    position: [-1.8, 0, -1.2],
+    rotation: [0, 20, 0],
+    scale: [1, 1, 1],
+    dimensions: { widthCm: 110, heightCm: 195, depthCm: 60 },
+    color: 'sand',
+    material: 'Natural White Oak',
+  },
 ];
 
 export const FurnitureToolbar: React.FC = () => {

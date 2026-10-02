@@ -1,36 +1,33 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import * as THREE from 'three';
 import { Product } from '@/types/product';
 import { useCameraAR } from '@/hooks/useCameraAR';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
+import { setupLightingAndEnvironment, LightingRig } from '../visualization/LightingEnvironment';
+import { loadFurnitureModel } from '../visualization/ModelLoader';
 import {
   Camera,
   RotateCw,
   RefreshCw,
   ShieldCheck,
   AlertCircle,
-  QrCode,
   UploadCloud,
   CheckCircle2,
   Lock,
   Smartphone,
   Sparkles,
   ShoppingBag,
-  VolumeX,
-  Maximize2,
   X,
   FlipHorizontal,
-  Move,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   Crosshair,
-  Ruler,
-  Layers
 } from 'lucide-react';
 
 export interface CameraARViewerProps {
@@ -65,16 +62,20 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     setRotation,
     rotateBy,
     nudgePosition,
-    relockSurface,
   } = useCameraAR();
 
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const lightingRigRef = useRef<LightingRig | null>(null);
+  const furnitureGroupRef = useRef<THREE.Group | null>(null);
+
   const [isAddedToCart, setIsAddedToCart] = useState(false);
-  const [activeTab, setActiveTab] = useState<'controls' | 'dimensions'>('controls');
+  const [isWebXRLoading, setIsWebXRLoading] = useState(false);
 
   // QuickLook USDZ / SceneViewer GLB URLs
-  const glbUrl = product.model3D?.modelUrl || 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb';
+  const glbUrl = product.model3D?.modelUrl || 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
   const usdzUrl = product.model3D?.modelUrl?.replace(/\.glb$/i, '.usdz') || glbUrl;
 
   // Autostart camera session when mounted if supported
@@ -88,27 +89,123 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     };
   }, [isSupported]);
 
-  // Drag handlers for placing / nudging furniture on surface
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - placement.x, y: e.clientY - placement.y };
-  };
+  // Setup WebGL 3D Overlay Scene for Live Camera Feed
+  useEffect(() => {
+    if (sessionState !== 'active' || !canvasContainerRef.current) return;
+    const container = canvasContainerRef.current;
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 560;
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
-    const newX = e.clientX - dragStartRef.current.x;
-    const newY = e.clientY - dragStartRef.current.y;
-    placeFurniture(newX, newY);
-  };
+    // 1. Scene
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
 
-  const handlePointerUp = () => {
-    setIsDragging(false);
-  };
+    // 2. Realistic Mobile Camera Perspective (52° FOV, ~1.2m height, tilted down 18° to floor)
+    const camera = new THREE.PerspectiveCamera(52, width / height, 0.05, 30);
+    camera.position.set(0, 1.25, 2.5);
+    camera.lookAt(0, 0.2, 0);
+    cameraRef.current = camera;
 
-  // Surface click to place furniture
+    // 3. WebGL Transparent Renderer
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true,
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // 4. Lighting & Environment Rig
+    const lightingRig = setupLightingAndEnvironment(scene, renderer);
+    lightingRigRef.current = lightingRig;
+    lightingRig.updatePreset('daylight');
+    lightingRig.gridHelper.visible = false; // Hide grid in AR camera mode
+
+    // 5. Load Product 3D Model
+    let isMounted = true;
+    const loadModel = async () => {
+      try {
+        const modelItem = {
+          id: `ar-${product.id}`,
+          productId: product.id,
+          name: product.name,
+          price: product.basePrice,
+          modelUrl: glbUrl,
+          position: [0, 0, 0] as [number, number, number],
+          rotation: [0, 0, 0] as [number, number, number],
+          scale: [1, 1, 1] as [number, number, number],
+          dimensions: product.dimensions,
+          color: product.variants?.[0]?.color || 'grey',
+          material: product.material,
+        };
+
+        const group = await loadFurnitureModel(modelItem);
+        if (!isMounted) return;
+
+        // Keep invisible until user taps to place or initial reticle detects floor
+        group.visible = placement.isPlaced;
+        scene.add(group);
+        furnitureGroupRef.current = group;
+      } catch (err) {
+        console.error('Error loading AR model:', err);
+      }
+    };
+    loadModel();
+
+    // 6. Resize Handler
+    const handleResize = () => {
+      if (!container || !renderer || !camera) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // 7. Animation Loop
+    let animationFrameId: number;
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate);
+      if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+    };
+    animate();
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+      lightingRig.dispose();
+      renderer.dispose();
+      if (container && renderer.domElement && container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, [sessionState, product]);
+
+  // Synchronize Placement, Position, and Rotation
+  useEffect(() => {
+    if (!furnitureGroupRef.current) return;
+    const group = furnitureGroupRef.current;
+
+    group.visible = placement.isPlaced;
+
+    // Convert screen nudge units to 3D world meters
+    const worldX = placement.x * 0.0035;
+    const worldZ = placement.y * 0.0035;
+    group.position.set(worldX, 0, worldZ);
+    group.rotation.y = THREE.MathUtils.degToRad(placement.rotation);
+  }, [placement]);
+
+  // Surface click to place furniture on floor
   const handleViewportClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left - rect.width / 2;
     const clickY = e.clientY - rect.top - rect.height / 2;
@@ -123,6 +220,26 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     }, 2000);
   };
 
+  // Launch genuine native WebXR session if hardware supports it
+  const handleLaunchWebXR = async () => {
+    if (typeof navigator !== 'undefined' && 'xr' in navigator && (navigator as any).xr?.requestSession) {
+      setIsWebXRLoading(true);
+      try {
+        const session = await (navigator as any).xr.requestSession('immersive-ar', {
+          requiredFeatures: ['hit-test'],
+          optionalFeatures: ['dom-overlay', 'light-estimation'],
+          domOverlay: { root: document.body },
+        });
+        // WebXR session successfully started
+        console.log('WebXR immersive-ar session started:', session);
+      } catch (err) {
+        console.warn('Native WebXR launch failed, continuing with browser camera AR:', err);
+      } finally {
+        setIsWebXRLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="relative w-full rounded-2xl overflow-hidden bg-[#1A1816] text-[#FAF9F7] border border-[#3A3632] flex flex-col items-center justify-center min-h-[520px]">
       {/* 1. ACTIVE LIVE CAMERA AR VIEW */}
@@ -130,9 +247,6 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
         <div
           className="relative w-full h-[560px] sm:h-[620px] overflow-hidden select-none touch-none cursor-crosshair"
           onClick={handleViewportClick}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
         >
           {/* Live WebRTC Camera Video Stream */}
           <video
@@ -146,6 +260,12 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
           {/* Environmental Gradient Filter */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
 
+          {/* Three.js 3D WebGL AR Overlay Layer */}
+          <div
+            ref={canvasContainerRef}
+            className="absolute inset-0 z-10 pointer-events-none"
+          />
+
           {/* Top Status & Surface Detection HUD */}
           <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-auto z-20 gap-2">
             <div className="flex flex-wrap items-center gap-2 bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs shadow-lg">
@@ -154,9 +274,9 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                 surfaceState === 'detected' ? 'bg-amber-400 animate-pulse' : 'bg-blue-400 animate-ping'
               }`} />
               <span className="font-medium text-white">
-                {surfaceState === 'locked' && 'Surface Locked (1:1 Scale)'}
-                {surfaceState === 'detected' && `Floor Detected (${surfaceConfidence}%) • Tap to Place`}
-                {surfaceState === 'searching' && 'Scanning Floor Plane...'}
+                {surfaceState === 'locked' && 'Surface Locked (1:1 Physical Scale)'}
+                {surfaceState === 'detected' && `Floor Plane Detected (${surfaceConfidence}%) • Tap to Place`}
+                {surfaceState === 'searching' && 'Scanning Floor Surface...'}
               </span>
               <span className="text-white/30">|</span>
               <span className="text-amber-300 font-semibold font-mono text-[11px]">
@@ -165,6 +285,17 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {isWebXRSupported && (
+                <button
+                  onClick={handleLaunchWebXR}
+                  disabled={isWebXRLoading}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full text-xs shadow-md transition flex items-center gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{isWebXRLoading ? 'Opening...' : 'Immersive WebXR'}</span>
+                </button>
+              )}
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -191,11 +322,10 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
           </div>
 
-          {/* Surface Grid Projection & Reticle Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {!placement.isPlaced ? (
+          {/* Surface Grid Projection & Reticle Overlay (before placement) */}
+          {!placement.isPlaced && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
               <div className="flex flex-col items-center gap-3">
-                {/* 3D Perspective Plane Grid Visualizer */}
                 <div className="w-72 h-40 border-2 border-dashed border-amber-400/60 rounded-[40%] bg-amber-400/10 [transform:rotateX(65deg)] flex items-center justify-center animate-pulse">
                   <div className="w-20 h-20 border border-amber-400/80 rounded-full flex items-center justify-center">
                     <Crosshair className="w-8 h-8 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
@@ -204,49 +334,6 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                 <div className="bg-black/80 px-4 py-2 rounded-full backdrop-blur-md border border-amber-400/40 text-amber-200 text-xs font-semibold shadow-xl flex items-center gap-2">
                   <Crosshair className="w-4 h-4 text-amber-400 animate-bounce" />
                   <span>Tap anywhere on the floor to position {product.name}</span>
-                </div>
-              </div>
-            ) : (
-              /* Floor Contact Shadow when placed */
-              <div
-                className="absolute transition-transform duration-75 pointer-events-none"
-                style={{
-                  left: `calc(50% + ${placement.x}px)`,
-                  top: `calc(58% + ${placement.y}px)`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                <div className="w-64 h-24 bg-black/70 rounded-[50%] blur-md [transform:rotateX(60deg)] scale-110" />
-                {/* Detected plane bounds */}
-                <div className="absolute inset-0 border border-emerald-400/40 rounded-[50%] [transform:rotateX(60deg)] animate-pulse" />
-              </div>
-            )}
-          </div>
-
-          {/* Placed Interactive 3D Furniture Projection */}
-          {placement.isPlaced && (
-            <div
-              onPointerDown={handlePointerDown}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute z-10 cursor-grab active:cursor-grabbing transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 drop-shadow-[0_30px_30px_rgba(0,0,0,0.8)]"
-              style={{
-                left: `calc(50% + ${placement.x}px)`,
-                top: `calc(54% + ${placement.y}px)`,
-                transform: `scale(${placement.scale}) rotateY(${placement.rotation}deg)`,
-              }}
-            >
-              <div className="relative group">
-                <img
-                  src={product.images[0]?.imageUrl}
-                  alt={product.name}
-                  className="max-h-60 max-w-[290px] sm:max-h-72 sm:max-w-md object-contain filter drop-shadow-2xl"
-                  draggable={false}
-                />
-                
-                {/* Real-Scale Indicator Tag */}
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-emerald-500/50 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-lg flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  <span>Placed on Surface • {placement.rotation}°</span>
                 </div>
               </div>
             </div>
@@ -364,7 +451,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                 <ShieldCheck className="w-3 h-3" />
                 <span>Zero persistence • Live frames processed in RAM only</span>
               </div>
-              <span>Drag or tap to adjust position on detected surface</span>
+              <span>Tap anywhere to place 3D model on detected floor</span>
             </div>
           </div>
         </div>
@@ -490,3 +577,4 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 };
 
 export default CameraARViewer;
+

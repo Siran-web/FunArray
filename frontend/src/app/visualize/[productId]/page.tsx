@@ -20,7 +20,7 @@ export default function VisualizeProductPage() {
         productId: productId,
         name: `Furniture Piece (${productId})`,
         price: 349.99,
-        modelUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+        modelUrl: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb',
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         scale: [1, 1, 1],

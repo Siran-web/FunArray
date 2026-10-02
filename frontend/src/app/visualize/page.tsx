@@ -60,7 +60,7 @@ function StudioContent() {
         productId: 'prod-nordic-armchair',
         name: 'Nordic Fabric Armchair',
         price: 299.99,
-        modelUrl: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+        modelUrl: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb',
         position: [0, 0, 0],
         rotation: [0, -15, 0],
         scale: [1, 1, 1],
