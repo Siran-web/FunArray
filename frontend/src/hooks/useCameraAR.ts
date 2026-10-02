@@ -10,9 +10,11 @@ export interface ARPlacementState {
   isPlaced: boolean;
   x: number;
   y: number;
+  worldPosition: [number, number, number];
   rotation: number;
   scale: number;
   elevationCm: number;
+  surfaceTilt: number;
 }
 
 export interface CameraAROptions {
@@ -26,6 +28,9 @@ export interface UseCameraARReturn {
   sessionState: ARSessionState;
   surfaceState: ARSurfaceState;
   surfaceConfidence: number;
+  surfaceTiltDegrees: number;
+  isSurfaceValid: boolean;
+  validationMessage: string | null;
   placement: ARPlacementState;
   isSupported: boolean;
   isWebXRSupported: boolean;
@@ -38,6 +43,8 @@ export interface UseCameraARReturn {
   facingMode: 'environment' | 'user';
   hasPermission: boolean;
   placeFurniture: (x?: number, y?: number) => void;
+  placeAtSurface: (position: [number, number, number], rotationY?: number) => void;
+  setSurfaceValidation: (isValid: boolean, message?: string | null, tilt?: number) => void;
   resetPlacement: () => void;
   setRotation: (deg: number) => void;
   rotateBy: (deltaDeg: number) => void;
@@ -56,6 +63,9 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
   const [sessionState, setSessionState] = useState<ARSessionState>('idle');
   const [surfaceState, setSurfaceState] = useState<ARSurfaceState>('searching');
   const [surfaceConfidence, setSurfaceConfidence] = useState<number>(0);
+  const [surfaceTiltDegrees, setSurfaceTiltDegrees] = useState<number>(0);
+  const [isSurfaceValid, setIsSurfaceValid] = useState<boolean>(true);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState<boolean>(true);
   const [isWebXRSupported, setIsWebXRSupported] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,9 +76,11 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     isPlaced: false,
     x: 0,
     y: 20,
+    worldPosition: [0, 0, -1.8],
     rotation: 0,
     scale: 1,
     elevationCm: 0,
+    surfaceTilt: 0,
   });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -141,9 +153,11 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
       isPlaced: false,
       x: 0,
       y: 20,
+      worldPosition: [0, 0, -1.8],
       rotation: 0,
       scale: 1,
       elevationCm: 0,
+      surfaceTilt: 0,
     });
     if (onSessionEnd) onSessionEnd();
   }, [onSessionEnd]);
@@ -228,16 +242,38 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     setSurfaceState('locked');
   }, []);
 
+  const placeAtSurface = useCallback((position: [number, number, number], rotationY?: number) => {
+    setPlacement((prev) => ({
+      ...prev,
+      isPlaced: true,
+      worldPosition: position,
+      rotation: typeof rotationY === 'number' ? rotationY : prev.rotation,
+    }));
+    setSurfaceState('locked');
+  }, []);
+
+  const setSurfaceValidation = useCallback((isValid: boolean, message?: string | null, tilt?: number) => {
+    setIsSurfaceValid(isValid);
+    setValidationMessage(message ?? null);
+    if (typeof tilt === 'number') {
+      setSurfaceTiltDegrees(tilt);
+    }
+  }, []);
+
   const resetPlacement = useCallback(() => {
     setPlacement({
       isPlaced: false,
       x: 0,
       y: 20,
+      worldPosition: [0, 0, -1.8],
       rotation: 0,
       scale: 1,
       elevationCm: 0,
+      surfaceTilt: 0,
     });
     setSurfaceState('detected');
+    setIsSurfaceValid(true);
+    setValidationMessage(null);
   }, []);
 
   const setRotation = useCallback((deg: number) => {
@@ -259,6 +295,11 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
       ...prev,
       x: prev.x + dx,
       y: prev.y + dy,
+      worldPosition: [
+        prev.worldPosition[0] + dx * 0.0035,
+        prev.worldPosition[1],
+        prev.worldPosition[2] + dy * 0.0035,
+      ],
     }));
   }, []);
 
@@ -300,6 +341,9 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     sessionState,
     surfaceState,
     surfaceConfidence,
+    surfaceTiltDegrees,
+    isSurfaceValid,
+    validationMessage,
     placement,
     isSupported,
     isWebXRSupported,
@@ -312,6 +356,8 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     facingMode,
     hasPermission,
     placeFurniture,
+    placeAtSurface,
+    setSurfaceValidation,
     resetPlacement,
     setRotation,
     rotateBy,

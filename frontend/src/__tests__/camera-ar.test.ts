@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as THREE from 'three';
+import {
+  createARPlacementReticle,
+  validateSurfacePlacement,
+  SurfaceHit,
+} from '../components/ar/ARSurfaceManager';
 
 describe('AR Surface Detection & Furniture Placement (TICKET-046 & TICKET-047)', () => {
   let mockStopTrack: any;
@@ -130,14 +136,80 @@ describe('AR Surface Detection & Furniture Placement (TICKET-046 & TICKET-047)',
       },
     };
 
-    // AR true scale verification
+    // AR true scale verification (100cm = 1m)
     const scaleFactor = 1.0;
-    const scaledWidth = product.dimensions.widthCm * scaleFactor;
-    const scaledHeight = product.dimensions.heightCm * scaleFactor;
-    const scaledDepth = product.dimensions.depthCm * scaleFactor;
+    const scaledWidthMeters = (product.dimensions.widthCm * scaleFactor) / 100;
+    const scaledHeightMeters = (product.dimensions.heightCm * scaleFactor) / 100;
+    const scaledDepthMeters = (product.dimensions.depthCm * scaleFactor) / 100;
 
-    expect(scaledWidth).toBe(210);
-    expect(scaledHeight).toBe(85);
-    expect(scaledDepth).toBe(90);
+    expect(scaledWidthMeters).toBe(2.10);
+    expect(scaledHeightMeters).toBe(0.85);
+    expect(scaledDepthMeters).toBe(0.90);
+  });
+
+  it('should create placement reticle and smooth tracking updates via LERP', () => {
+    const reticleRig = createARPlacementReticle();
+    expect(reticleRig.mesh).toBeDefined();
+    expect(reticleRig.isValid()).toBe(false);
+
+    const hit: SurfaceHit = {
+      position: new THREE.Vector3(0.5, 0.0, -1.5),
+      normal: new THREE.Vector3(0, 1, 0),
+      orientation: new THREE.Quaternion(),
+      isFloor: true,
+      isWall: false,
+      tiltDegrees: 0,
+      confidence: 0.95,
+    };
+
+    reticleRig.updateTarget(hit, 0.016);
+    expect(reticleRig.isValid()).toBe(true);
+    expect(reticleRig.getCurrentHit()).toBe(hit);
+    expect(reticleRig.mesh.visible).toBe(true);
+
+    reticleRig.dispose();
+  });
+
+  it('should validate surface placement and reject vertical walls or excessive tilt for floor furniture', () => {
+    const validFloorHit: SurfaceHit = {
+      position: new THREE.Vector3(0, 0, -2),
+      normal: new THREE.Vector3(0, 1, 0),
+      orientation: new THREE.Quaternion(),
+      isFloor: true,
+      isWall: false,
+      tiltDegrees: 2,
+      confidence: 0.95,
+    };
+
+    const validResult = validateSurfacePlacement(validFloorHit, 'Living Room Sofa');
+    expect(validResult.isValid).toBe(true);
+
+    const wallHit: SurfaceHit = {
+      position: new THREE.Vector3(0, 1.2, -2),
+      normal: new THREE.Vector3(0, 0, 1),
+      orientation: new THREE.Quaternion(),
+      isFloor: false,
+      isWall: true,
+      tiltDegrees: 88,
+      confidence: 0.92,
+    };
+
+    const wallResult = validateSurfacePlacement(wallHit, 'Living Room Sofa');
+    expect(wallResult.isValid).toBe(false);
+    expect(wallResult.reason).toContain('cannot be placed against a vertical wall');
+
+    const tiltedHit: SurfaceHit = {
+      position: new THREE.Vector3(0, 0, -2),
+      normal: new THREE.Vector3(0.6, 0.8, 0),
+      orientation: new THREE.Quaternion(),
+      isFloor: false,
+      isWall: false,
+      tiltDegrees: 37,
+      confidence: 0.85,
+    };
+
+    const tiltedResult = validateSurfacePlacement(tiltedHit, 'Dining Table');
+    expect(tiltedResult.isValid).toBe(false);
+    expect(tiltedResult.reason).toContain('flat, horizontal floor surface');
   });
 });

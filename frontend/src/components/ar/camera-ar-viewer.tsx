@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/lib/utils';
 import { setupLightingAndEnvironment, LightingRig } from '../visualization/LightingEnvironment';
 import { loadFurnitureModel } from '../visualization/ModelLoader';
+import { createARPlacementReticle, SurfaceHit, validateSurfacePlacement } from './ARSurfaceManager';
 import {
   Camera,
   RotateCw,
@@ -58,6 +59,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     toggleCameraFacing,
     facingMode,
     placeFurniture,
+    placeAtSurface,
     resetPlacement,
     setRotation,
     rotateBy,
@@ -70,9 +72,11 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const lightingRigRef = useRef<LightingRig | null>(null);
   const furnitureGroupRef = useRef<THREE.Group | null>(null);
+  const reticleRigRef = useRef<ReturnType<typeof createARPlacementReticle> | null>(null);
 
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [isWebXRLoading, setIsWebXRLoading] = useState(false);
+  const [placementError, setPlacementError] = useState<string | null>(null);
 
   // QuickLook USDZ / SceneViewer GLB URLs
   const glbUrl = product.model3D?.modelUrl || 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
@@ -100,10 +104,10 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // 2. Realistic Mobile Camera Perspective (52° FOV, ~1.2m height, tilted down 18° to floor)
+    // 2. Realistic Mobile Camera Perspective (52° FOV, ~1.25m height, angled down 18° to floor)
     const camera = new THREE.PerspectiveCamera(52, width / height, 0.05, 30);
-    camera.position.set(0, 1.25, 2.5);
-    camera.lookAt(0, 0.2, 0);
+    camera.position.set(0, 1.25, 2.4);
+    camera.lookAt(0, 0.15, 0);
     cameraRef.current = camera;
 
     // 3. WebGL Transparent Renderer
@@ -125,7 +129,12 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     lightingRig.updatePreset('daylight');
     lightingRig.gridHelper.visible = false; // Hide grid in AR camera mode
 
-    // 5. Load Product 3D Model
+    // 5. Create 3D Placement Reticle with Smooth LERP
+    const reticleRig = createARPlacementReticle();
+    reticleRigRef.current = reticleRig;
+    scene.add(reticleRig.mesh);
+
+    // 6. Load Product 3D Model with Real-World Physical Scale (100cm = 1m)
     let isMounted = true;
     const loadModel = async () => {
       try {
@@ -138,7 +147,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
           position: [0, 0, 0] as [number, number, number],
           rotation: [0, 0, 0] as [number, number, number],
           scale: [1, 1, 1] as [number, number, number],
-          dimensions: product.dimensions,
+          dimensions: product.dimensions, // Exact backend dimensions in cm
           color: product.variants?.[0]?.color || 'grey',
           material: product.material,
         };
@@ -146,7 +155,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
         const group = await loadFurnitureModel(modelItem);
         if (!isMounted) return;
 
-        // Keep invisible until user taps to place or initial reticle detects floor
+        // Keep invisible until user taps to place
         group.visible = placement.isPlaced;
         scene.add(group);
         furnitureGroupRef.current = group;
@@ -156,7 +165,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     };
     loadModel();
 
-    // 6. Resize Handler
+    // 7. Resize Handler
     const handleResize = () => {
       if (!container || !renderer || !camera) return;
       const w = container.clientWidth;
@@ -168,10 +177,43 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
-    // 7. Animation Loop
+    // 8. Raycaster & Floor Plane for Smooth Reticle Surface Tracking
+    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const raycaster = new THREE.Raycaster();
+    const centerVec = new THREE.Vector2(0, -0.15); // Slightly below screen center for natural floor perspective
+    let lastTime = performance.now();
+
+    // 9. Animation & Surface Tracking Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      const now = performance.now();
+      const deltaTime = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+
+      if (!placement.isPlaced && reticleRigRef.current && cameraRef.current) {
+        raycaster.setFromCamera(centerVec, cameraRef.current);
+        const hitPoint = new THREE.Vector3();
+        const hasHit = raycaster.ray.intersectPlane(floorPlane, hitPoint);
+
+        if (hasHit) {
+          const hit: SurfaceHit = {
+            position: hitPoint,
+            normal: new THREE.Vector3(0, 1, 0),
+            orientation: new THREE.Quaternion(),
+            isFloor: true,
+            isWall: false,
+            tiltDegrees: 0,
+            confidence: 0.96,
+          };
+          reticleRigRef.current.updateTarget(hit, deltaTime);
+        } else {
+          reticleRigRef.current.updateTarget(null, deltaTime);
+        }
+      } else if (reticleRigRef.current) {
+        reticleRigRef.current.setVisible(false);
+      }
+
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
@@ -182,6 +224,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
       isMounted = false;
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
+      reticleRig.dispose();
       lightingRig.dispose();
       renderer.dispose();
       if (container && renderer.domElement && container.contains(renderer.domElement)) {
@@ -197,15 +240,35 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 
     group.visible = placement.isPlaced;
 
-    // Convert screen nudge units to 3D world meters
-    const worldX = placement.x * 0.0035;
-    const worldZ = placement.y * 0.0035;
-    group.position.set(worldX, 0, worldZ);
+    // Position model at exact 3D world position (1 unit = 1 meter)
+    group.position.set(
+      placement.worldPosition[0] + placement.x * 0.0035,
+      0, // Grounded base strictly at floor level
+      placement.worldPosition[2] + placement.y * 0.0035
+    );
     group.rotation.y = THREE.MathUtils.degToRad(placement.rotation);
   }, [placement]);
 
   // Surface click to place furniture on floor
   const handleViewportClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    setPlacementError(null);
+
+    // If reticle has a valid surface hit, place furniture at that exact surface location
+    if (reticleRigRef.current && reticleRigRef.current.isValid()) {
+      const hit = reticleRigRef.current.getCurrentHit();
+      if (hit) {
+        const validation = validateSurfacePlacement(hit, product.categoryName || 'floor');
+        if (!validation.isValid) {
+          setPlacementError(validation.reason || 'Invalid surface');
+          return;
+        }
+
+        placeAtSurface([hit.position.x, 0, hit.position.z], 0);
+        return;
+      }
+    }
+
+    // Fallback: place on floor plane from click ray
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left - rect.width / 2;
     const clickY = e.clientY - rect.top - rect.height / 2;
@@ -322,19 +385,22 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
           </div>
 
-          {/* Surface Grid Projection & Reticle Overlay (before placement) */}
+          {/* Error Banner if placement is rejected (e.g. tilted surface or wall) */}
+          {placementError && (
+            <div className="absolute top-16 inset-x-4 z-30 flex justify-center pointer-events-none animate-bounce">
+              <div className="bg-rose-950/90 text-rose-200 border border-rose-600/80 px-4 py-2 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 backdrop-blur-md">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{placementError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Surface Guidance Overlay (before placement) */}
           {!placement.isPlaced && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-72 h-40 border-2 border-dashed border-amber-400/60 rounded-[40%] bg-amber-400/10 [transform:rotateX(65deg)] flex items-center justify-center animate-pulse">
-                  <div className="w-20 h-20 border border-amber-400/80 rounded-full flex items-center justify-center">
-                    <Crosshair className="w-8 h-8 text-amber-300 animate-spin" style={{ animationDuration: '6s' }} />
-                  </div>
-                </div>
-                <div className="bg-black/80 px-4 py-2 rounded-full backdrop-blur-md border border-amber-400/40 text-amber-200 text-xs font-semibold shadow-xl flex items-center gap-2">
-                  <Crosshair className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span>Tap anywhere on the floor to position {product.name}</span>
-                </div>
+            <div className="absolute bottom-24 inset-x-4 flex justify-center pointer-events-none z-20">
+              <div className="bg-black/80 px-4 py-2 rounded-full backdrop-blur-md border border-emerald-400/40 text-emerald-200 text-xs font-semibold shadow-xl flex items-center gap-2">
+                <Crosshair className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span>Move phone to scan floor • Tap when green reticle appears</span>
               </div>
             </div>
           )}
