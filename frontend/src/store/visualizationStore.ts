@@ -26,6 +26,8 @@ interface VisualizationState {
   removeFurniture: (id: string) => void;
   selectFurniture: (id: string | null) => void;
   duplicateFurniture: (id: string) => void;
+  toggleLockFurniture: (id: string) => void;
+  resetFurnitureTransform: (id: string) => void;
   setLightingMode: (mode: 'warm' | 'studio' | 'daylight') => void;
   toggleGrid: () => void;
   toggleShadows: () => void;
@@ -68,16 +70,16 @@ export const useVisualizationStore = create<VisualizationState>((set) => ({
 
   updateFurnitureTransform: (id, position, rotation, scale) =>
     set((state) => ({
-      placedFurniture: state.placedFurniture.map((f) =>
-        f.id === id
-          ? {
-              ...f,
-              position: position ?? f.position,
-              rotation: rotation ?? f.rotation,
-              scale: scale ?? f.scale,
-            }
-          : f
-      ),
+      placedFurniture: state.placedFurniture.map((f) => {
+        if (f.id !== id) return f;
+        if (f.isLocked) return f; // Locked furniture cannot accidentally move or rotate
+        return {
+          ...f,
+          position: position ?? f.position,
+          rotation: rotation ?? f.rotation,
+          scale: scale ?? f.scale,
+        };
+      }),
     })),
 
   removeFurniture: (id) =>
@@ -97,6 +99,7 @@ export const useVisualizationStore = create<VisualizationState>((set) => ({
         ...source,
         id: `furniture-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         position: [source.position[0] + 0.4, source.position[1], source.position[2] + 0.4],
+        isLocked: false,
       };
 
       return {
@@ -104,6 +107,28 @@ export const useVisualizationStore = create<VisualizationState>((set) => ({
         selectedFurnitureId: duplicate.id,
       };
     }),
+
+  toggleLockFurniture: (id) =>
+    set((state) => ({
+      placedFurniture: state.placedFurniture.map((f) =>
+        f.id === id ? { ...f, isLocked: !f.isLocked } : f
+      ),
+    })),
+
+  resetFurnitureTransform: (id) =>
+    set((state) => ({
+      placedFurniture: state.placedFurniture.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              position: [0, 0, 0],
+              rotation: [0, 0, 0],
+              scale: [1, 1, 1],
+              isLocked: false,
+            }
+          : f
+      ),
+    })),
 
   setLightingMode: (lightingMode) => set({ lightingMode }),
   toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),

@@ -8,6 +8,7 @@ export type ARSurfaceState = 'searching' | 'detected' | 'locked' | 'lost';
 
 export interface ARPlacementState {
   isPlaced: boolean;
+  isLocked: boolean;
   x: number;
   y: number;
   worldPosition: [number, number, number];
@@ -44,6 +45,9 @@ export interface UseCameraARReturn {
   toggleCameraFacing: () => Promise<void>;
   toggleDepthOcclusion: () => void;
   setDepthOcclusionEnabled: (enabled: boolean) => void;
+  toggleLockPlacement: () => void;
+  setScale: (scale: number) => void;
+  deletePlacement: () => void;
   facingMode: 'environment' | 'user';
   hasPermission: boolean;
   placeFurniture: (x?: number, y?: number) => void;
@@ -80,6 +84,7 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
 
   const [placement, setPlacement] = useState<ARPlacementState>({
     isPlaced: false,
+    isLocked: false,
     x: 0,
     y: 20,
     worldPosition: [0, 0, -1.8],
@@ -165,6 +170,7 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     setSurfaceState('searching');
     setPlacement({
       isPlaced: false,
+      isLocked: false,
       x: 0,
       y: 20,
       worldPosition: [0, 0, -1.8],
@@ -277,6 +283,7 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
   const resetPlacement = useCallback(() => {
     setPlacement({
       isPlaced: false,
+      isLocked: false,
       x: 0,
       y: 20,
       worldPosition: [0, 0, -1.8],
@@ -290,31 +297,67 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     setValidationMessage(null);
   }, []);
 
-  const setRotation = useCallback((deg: number) => {
+  const deletePlacement = useCallback(() => {
     setPlacement((prev) => ({
       ...prev,
-      rotation: ((deg % 360) + 360) % 360,
+      isPlaced: false,
+      isLocked: false,
     }));
+    setSurfaceState('detected');
+  }, []);
+
+  const toggleLockPlacement = useCallback(() => {
+    setPlacement((prev) => ({
+      ...prev,
+      isLocked: !prev.isLocked,
+    }));
+  }, []);
+
+  const setScale = useCallback((scale: number) => {
+    setPlacement((prev) => {
+      if (prev.isLocked) return prev;
+      const clamped = Math.max(0.75, Math.min(1.25, Math.round(scale * 100) / 100));
+      return {
+        ...prev,
+        scale: clamped,
+      };
+    });
+  }, []);
+
+  const setRotation = useCallback((deg: number) => {
+    setPlacement((prev) => {
+      if (prev.isLocked) return prev;
+      return {
+        ...prev,
+        rotation: ((deg % 360) + 360) % 360,
+      };
+    });
   }, []);
 
   const rotateBy = useCallback((deltaDeg: number) => {
-    setPlacement((prev) => ({
-      ...prev,
-      rotation: (((prev.rotation + deltaDeg) % 360) + 360) % 360,
-    }));
+    setPlacement((prev) => {
+      if (prev.isLocked) return prev;
+      return {
+        ...prev,
+        rotation: (((prev.rotation + deltaDeg) % 360) + 360) % 360,
+      };
+    });
   }, []);
 
   const nudgePosition = useCallback((dx: number, dy: number) => {
-    setPlacement((prev) => ({
-      ...prev,
-      x: prev.x + dx,
-      y: prev.y + dy,
-      worldPosition: [
-        prev.worldPosition[0] + dx * 0.0035,
-        prev.worldPosition[1],
-        prev.worldPosition[2] + dy * 0.0035,
-      ],
-    }));
+    setPlacement((prev) => {
+      if (prev.isLocked) return prev;
+      return {
+        ...prev,
+        x: prev.x + dx,
+        y: prev.y + dy,
+        worldPosition: [
+          prev.worldPosition[0] + dx * 0.0035,
+          prev.worldPosition[1],
+          prev.worldPosition[2] + dy * 0.0035,
+        ],
+      };
+    });
   }, []);
 
   const relockSurface = useCallback(() => {
@@ -379,6 +422,9 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     toggleCameraFacing,
     toggleDepthOcclusion,
     setDepthOcclusionEnabled,
+    toggleLockPlacement,
+    setScale,
+    deletePlacement,
     facingMode,
     hasPermission,
     placeFurniture,

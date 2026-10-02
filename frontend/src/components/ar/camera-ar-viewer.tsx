@@ -31,6 +31,9 @@ import {
   ArrowRight,
   Crosshair,
   Layers,
+  Unlock,
+  Trash2,
+  Maximize2,
 } from 'lucide-react';
 
 export interface CameraARViewerProps {
@@ -62,6 +65,9 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     stopCameraSession,
     toggleCameraFacing,
     toggleDepthOcclusion,
+    toggleLockPlacement,
+    setScale,
+    deletePlacement,
     facingMode,
     placeFurniture,
     placeAtSurface,
@@ -264,6 +270,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
       placement.worldPosition[2] + placement.y * 0.0035
     );
     group.rotation.y = THREE.MathUtils.degToRad(placement.rotation);
+    group.scale.set(placement.scale, placement.scale, placement.scale);
   }, [placement]);
 
   // Surface click to place furniture on floor
@@ -447,109 +454,147 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 
           {/* Bottom Floating Control Panel */}
           <div className="absolute bottom-4 inset-x-4 flex flex-col gap-2 z-20 pointer-events-auto">
-            {/* Fine Position & Rotation Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 bg-black/80 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-2xl">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    rotateBy(-45);
-                  }}
-                  className="text-white hover:bg-white/15 text-xs px-2.5 h-8 gap-1"
-                >
-                  <RotateCw className="w-3.5 h-3.5 [transform:scaleX(-1)]" />
-                  <span>-45°</span>
-                </Button>
+            {/* Fine Position, Scale & Rotation Toolbar */}
+            {placement.isPlaced && (
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-black/85 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Rotation Buttons */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={placement.isLocked}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      rotateBy(-45);
+                    }}
+                    className="text-white hover:bg-white/15 text-xs px-2 h-8 gap-1"
+                    title="Rotate -45°"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 [transform:scaleX(-1)]" />
+                    <span>-45°</span>
+                  </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    rotateBy(45);
-                  }}
-                  className="text-white hover:bg-white/15 text-xs px-2.5 h-8 gap-1 font-semibold text-amber-300"
-                >
-                  <RotateCw className="w-3.5 h-3.5" />
-                  <span>+45° ({placement.rotation}°)</span>
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={placement.isLocked}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      rotateBy(45);
+                    }}
+                    className="text-white hover:bg-white/15 text-xs px-2 h-8 gap-1 font-semibold text-amber-300"
+                    title="Rotate +45°"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                    <span>+45° ({placement.rotation}°)</span>
+                  </Button>
 
-                <div className="h-4 w-px bg-white/20 mx-1" />
+                  <div className="h-4 w-px bg-white/20 mx-0.5" />
 
-                {/* Micro-Nudge Controls */}
-                <div className="flex items-center gap-0.5">
+                  {/* Micro-Nudge Controls */}
+                  <div className={`flex items-center gap-0.5 ${placement.isLocked ? 'opacity-40 pointer-events-none' : ''}`}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nudgePosition(-10, 0);
+                      }}
+                      title="Nudge Left"
+                      className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nudgePosition(0, -10);
+                      }}
+                      title="Nudge Forward"
+                      className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nudgePosition(0, 10);
+                      }}
+                      title="Nudge Backward"
+                      className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nudgePosition(10, 0);
+                      }}
+                      title="Nudge Right"
+                      className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="h-4 w-px bg-white/20 mx-0.5" />
+
+                  {/* Lock / Unlock Toggle */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      nudgePosition(-10, 0);
+                      toggleLockPlacement();
                     }}
-                    title="Nudge Left"
-                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    title={placement.isLocked ? 'Unlock to move or rotate' : 'Lock position'}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1 transition ${
+                      placement.isLocked
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-700'
+                    }`}
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" />
+                    {placement.isLocked ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3" />}
+                    <span>{placement.isLocked ? 'Locked' : 'Lock'}</span>
                   </button>
+
+                  {/* Delete / Clear */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      nudgePosition(0, -10);
+                      deletePlacement();
                     }}
-                    title="Nudge Forward"
-                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
+                    title="Remove placed furniture"
+                    className="p-1.5 bg-rose-950/70 hover:bg-rose-900 text-rose-300 rounded-lg text-xs border border-rose-800 transition"
                   >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      nudgePosition(0, 10);
-                    }}
-                    title="Nudge Backward"
-                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      nudgePosition(10, 0);
-                    }}
-                    title="Nudge Right"
-                    className="p-1.5 hover:bg-white/15 rounded text-white text-xs"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    resetPlacement();
-                  }}
-                  className="text-stone-300 hover:text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reposition</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resetPlacement();
+                    }}
+                    className="text-stone-300 hover:text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reposition</span>
+                  </Button>
 
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart();
-                  }}
-                  size="sm"
-                  className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white font-semibold text-xs px-4 h-9 shadow-lg gap-1.5"
-                >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>{isAddedToCart ? 'Added to Bag!' : `Add to Cart • ${formatPrice(product.basePrice)}`}</span>
-                </Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart();
+                    }}
+                    size="sm"
+                    className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white font-semibold text-xs px-4 h-9 shadow-lg gap-1.5"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>{isAddedToCart ? 'Added to Bag!' : `Add to Cart • ${formatPrice(product.basePrice)}`}</span>
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Privacy Guarantee Footer Tag */}
             <div className="flex items-center justify-between text-[10px] text-stone-400 px-2">

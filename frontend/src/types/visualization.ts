@@ -16,6 +16,7 @@ export interface PlacedFurniture {
   };
   color?: string;
   material?: string;
+  isLocked?: boolean;
 }
 
 export interface RoomImageRecord {
