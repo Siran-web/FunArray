@@ -34,12 +34,16 @@ export interface UseCameraARReturn {
   placement: ARPlacementState;
   isSupported: boolean;
   isWebXRSupported: boolean;
+  isDepthSensingSupported: boolean;
+  isDepthOcclusionEnabled: boolean;
   errorMessage: string | null;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   stream: MediaStream | null;
   startCameraSession: () => Promise<boolean>;
   stopCameraSession: () => void;
   toggleCameraFacing: () => Promise<void>;
+  toggleDepthOcclusion: () => void;
+  setDepthOcclusionEnabled: (enabled: boolean) => void;
   facingMode: 'environment' | 'user';
   hasPermission: boolean;
   placeFurniture: (x?: number, y?: number) => void;
@@ -68,6 +72,8 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState<boolean>(true);
   const [isWebXRSupported, setIsWebXRSupported] = useState<boolean>(false);
+  const [isDepthSensingSupported, setIsDepthSensingSupported] = useState<boolean>(false);
+  const [isDepthOcclusionEnabled, setIsDepthOcclusionEnabled] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>(preferredFacingMode);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
@@ -97,8 +103,16 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
         try {
           const supported = await (navigator as any).xr.isSessionSupported('immersive-ar');
           setIsWebXRSupported(!!supported);
+
+          // Check if WebXR depth sensing is supported
+          const hasDepthAPI =
+            typeof (window as any).XRDepthInformation !== 'undefined' ||
+            typeof (window as any).XRCPUDepthInformation !== 'undefined' ||
+            typeof (window as any).XRGPUTextureDepthInformation !== 'undefined';
+          setIsDepthSensingSupported(!!supported && hasDepthAPI);
         } catch {
           setIsWebXRSupported(false);
+          setIsDepthSensingSupported(false);
         }
       }
     };
@@ -337,6 +351,14 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     };
   }, []);
 
+  const toggleDepthOcclusion = useCallback(() => {
+    setIsDepthOcclusionEnabled((prev) => !prev);
+  }, []);
+
+  const setDepthOcclusionEnabled = useCallback((enabled: boolean) => {
+    setIsDepthOcclusionEnabled(enabled);
+  }, []);
+
   return {
     sessionState,
     surfaceState,
@@ -347,12 +369,16 @@ export function useCameraAR(options: CameraAROptions = {}): UseCameraARReturn {
     placement,
     isSupported,
     isWebXRSupported,
+    isDepthSensingSupported,
+    isDepthOcclusionEnabled,
     errorMessage,
     videoRef,
     stream,
     startCameraSession,
     stopCameraSession,
     toggleCameraFacing,
+    toggleDepthOcclusion,
+    setDepthOcclusionEnabled,
     facingMode,
     hasPermission,
     placeFurniture,

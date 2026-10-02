@@ -10,6 +10,7 @@ import { formatPrice } from '@/lib/utils';
 import { setupLightingAndEnvironment, LightingRig } from '../visualization/LightingEnvironment';
 import { loadFurnitureModel } from '../visualization/ModelLoader';
 import { createARPlacementReticle, SurfaceHit, validateSurfacePlacement } from './ARSurfaceManager';
+import { applyARDepthOcclusionToMaterial, DEFAULT_OCCLUSION_CONFIG } from './ARDepthOcclusion';
 import {
   Camera,
   RotateCw,
@@ -29,6 +30,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Crosshair,
+  Layers,
 } from 'lucide-react';
 
 export interface CameraARViewerProps {
@@ -51,12 +53,15 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     placement,
     isSupported,
     isWebXRSupported,
+    isDepthSensingSupported,
+    isDepthOcclusionEnabled,
     errorMessage,
     videoRef,
     stream,
     startCameraSession,
     stopCameraSession,
     toggleCameraFacing,
+    toggleDepthOcclusion,
     facingMode,
     placeFurniture,
     placeAtSurface,
@@ -154,6 +159,18 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
 
         const group = await loadFurnitureModel(modelItem);
         if (!isMounted) return;
+
+        // Apply AR depth-sensing occlusion hooks to mesh materials
+        group.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh && (child as THREE.Mesh).material) {
+            const mat = (child as THREE.Mesh).material;
+            if (Array.isArray(mat)) {
+              mat.forEach((m) => applyARDepthOcclusionToMaterial(m, { value: null }, { ...DEFAULT_OCCLUSION_CONFIG, enabled: isDepthOcclusionEnabled }));
+            } else {
+              applyARDepthOcclusionToMaterial(mat as THREE.Material, { value: null }, { ...DEFAULT_OCCLUSION_CONFIG, enabled: isDepthOcclusionEnabled });
+            }
+          }
+        });
 
         // Keep invisible until user taps to place
         group.visible = placement.isPlaced;
@@ -283,18 +300,22 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
     }, 2000);
   };
 
-  // Launch genuine native WebXR session if hardware supports it
+  // Launch genuine native WebXR session with depth sensing if hardware supports it
   const handleLaunchWebXR = async () => {
     if (typeof navigator !== 'undefined' && 'xr' in navigator && (navigator as any).xr?.requestSession) {
       setIsWebXRLoading(true);
       try {
         const session = await (navigator as any).xr.requestSession('immersive-ar', {
           requiredFeatures: ['hit-test'],
-          optionalFeatures: ['dom-overlay', 'light-estimation'],
+          optionalFeatures: ['depth-sensing', 'dom-overlay', 'light-estimation'],
+          depthSensing: {
+            usagePreference: ['gpu-optimized', 'cpu-optimized'],
+            dataFormatPreference: ['float32', 'luminance-alpha'],
+          },
           domOverlay: { root: document.body },
         });
         // WebXR session successfully started
-        console.log('WebXR immersive-ar session started:', session);
+        console.log('WebXR immersive-ar session started with depth-sensing:', session);
       } catch (err) {
         console.warn('Native WebXR launch failed, continuing with browser camera AR:', err);
       } finally {
@@ -348,6 +369,25 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Depth Occlusion Status / Toggle */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDepthOcclusion();
+                }}
+                title={isDepthSensingSupported ? 'Toggle Real-World Occlusion' : 'Depth Occlusion (Hardware Fallback)'}
+                className={`px-2.5 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 transition-colors shadow-md ${
+                  isDepthOcclusionEnabled
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                    : 'bg-black/60 text-stone-400 border-white/10 hover:bg-black/80'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {isDepthOcclusionEnabled ? 'Occlusion: ON' : 'Occlusion: OFF'}
+                </span>
+              </button>
+
               {isWebXRSupported && (
                 <button
                   onClick={handleLaunchWebXR}
