@@ -4,6 +4,22 @@
 
 ---
 
+## 📖 Developer Documentation
+
+Comprehensive technical documentation, architectural specs, and step-by-step developer onboarding guides are organized into categorized sections in the [`docs/`](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/README.md) directory:
+
+* 🚀 **[Developer Onboarding & Setup](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/02_DEVELOPER_ONBOARDING.md)**
+* 🏛️ **[Architecture](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/architecture/README.md)** ([System](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/architecture/system-architecture.md), [Frontend](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/architecture/frontend-architecture.md), [Backend](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/architecture/backend-architecture.md), [Component Map](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/architecture/component-map.md))
+* 🔌 **[REST APIs](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/api/README.md)** ([API Docs](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/api/api-documentation.md), [Frontend-API Mapping](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/api/frontend-api-mapping.md))
+* 🗄️ **[Database](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/database/README.md)** ([Flyway Schema](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/database/database-documentation.md), [ER Diagram](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/diagrams/database-er.md))
+* 📦 **[Features & AR](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/features/README.md)** ([Feature Walkthroughs](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/features/feature-documentation.md), [AR & 3D Engine](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/features/ar-3d-documentation.md), [Admin Portal](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/features/admin-documentation.md))
+* 🛠️ **[Workflow & Troubleshooting](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/workflow/README.md)** ([Environment Setup](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/workflow/environment-setup.md), [Dev Workflow](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/workflow/development-workflow.md), [Troubleshooting Guide](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/workflow/troubleshooting.md))
+* 🎨 **[All Architecture & Flow Diagrams](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/diagrams/README.md)**
+
+👉 **Start here:** **[docs/README.md](file:///c:/Users/coder/OneDrive/Desktop/funArray/docs/README.md)**
+
+---
+
 ## 🏛️ System Architecture
 
 ```
