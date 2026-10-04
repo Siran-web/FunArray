@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useVisualizationStore } from '../../store/visualizationStore';
 import { PlacedFurniture } from '../../types/visualization';
 import { designApi } from '../../services/designApi';
+import { Sliders, Plus, Sun, Image as ImageIcon, Grid, Save, Layers, RotateCcw, X, Check } from 'lucide-react';
 
 const ROOM_PRESETS = [
   {
@@ -105,8 +106,8 @@ export const FurnitureToolbar: React.FC = () => {
     setLightingMode,
     showGrid,
     toggleGrid,
-    showShadows,
-    toggleShadows,
+    floorAlignment,
+    startFloorAdjustment,
   } = useVisualizationStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,13 +120,11 @@ export const FurnitureToolbar: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       alert('Room image must be smaller than 10MB.');
       return;
     }
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please upload a valid image file (JPEG, PNG, WebP).');
       return;
@@ -178,13 +177,12 @@ export const FurnitureToolbar: React.FC = () => {
 
       setDesignName(customDesignName.trim());
       setIsSaveModalOpen(false);
-      setSaveStatus(`"${customDesignName.trim()}" saved successfully to your designs!`);
+      setSaveStatus(`"${customDesignName.trim()}" saved successfully`);
       setTimeout(() => setSaveStatus(null), 4000);
     } catch (err: any) {
-      console.warn('Could not save design to cloud:', err);
       setDesignName(customDesignName.trim());
       setIsSaveModalOpen(false);
-      setSaveStatus('Saved locally to browser.');
+      setSaveStatus('Saved locally to browser');
       setTimeout(() => setSaveStatus(null), 4000);
     } finally {
       setIsSaving(false);
@@ -195,14 +193,14 @@ export const FurnitureToolbar: React.FC = () => {
     <div className="space-y-3">
       {/* Save Notification */}
       {saveStatus && (
-        <div className="p-2.5 bg-emerald-950/80 border border-emerald-800 rounded-xl text-emerald-300 text-xs flex items-center justify-between">
-          <span>✓ {saveStatus}</span>
-          <button onClick={() => setSaveStatus(null)} className="text-emerald-400 hover:text-white">✕</button>
+        <div className="p-2.5 bg-[#2F7D50]/10 border border-[#2F7D50]/30 rounded-[10px] text-[#2F7D50] text-xs flex items-center justify-between font-medium">
+          <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> {saveStatus}</span>
+          <button onClick={() => setSaveStatus(null)} className="text-[#2F7D50] hover:opacity-75">✕</button>
         </div>
       )}
 
       {/* Main Control Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-stone-900/80 backdrop-blur-md border border-stone-800/80 rounded-2xl shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/95 backdrop-blur-md border border-[#E5E0DA] rounded-[16px] shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
         {/* Left: Room Background Controls */}
         <div className="flex items-center gap-2">
           <input
@@ -214,27 +212,40 @@ export const FurnitureToolbar: React.FC = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-medium rounded-xl border border-stone-700 transition flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#24211E] text-xs font-medium rounded-[10px] border border-[#E5E0DA] transition flex items-center gap-1.5 cursor-pointer"
           >
-            <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            {roomImage ? 'Change Photo' : 'Upload Room'}
+            <ImageIcon className="w-3.5 h-3.5 text-[#8B5E3C]" />
+            <span>{roomImage ? 'Change Photo' : 'Upload Room Photo'}</span>
           </button>
 
           <button
             onClick={() => setIsPresetsOpen(!isPresetsOpen)}
-            className="px-3 py-2 bg-stone-800/60 hover:bg-stone-700 text-stone-300 text-xs font-medium rounded-xl border border-stone-700/60 transition"
+            className="px-3 py-2 bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#6F6A64] hover:text-[#24211E] text-xs font-medium rounded-[10px] border border-[#E5E0DA] transition cursor-pointer"
           >
-            Room Presets ▾
+            Presets ▾
           </button>
 
           {roomImage && (
             <button
-              onClick={() => setRoomImage(null)}
-              className="text-xs text-stone-400 hover:text-stone-200 px-2 py-1"
+              onClick={startFloorAdjustment}
+              className={`px-3 py-2 text-xs font-medium rounded-[10px] border transition flex items-center gap-1.5 cursor-pointer ${
+                floorAlignment.isAdjusting
+                  ? 'bg-[#8B5E3C] text-white border-[#8B5E3C]'
+                  : 'bg-[#F3E8DE] text-[#8B5E3C] border-[#8B5E3C]/30 hover:bg-[#EBDDCF]'
+              }`}
+              title="Calibrate 3D floor perspective to match your room photo"
             >
-              Clear
+              <Sliders className="w-3.5 h-3.5" />
+              <span>{floorAlignment.isAdjusting ? 'Aligning Floor...' : 'Adjust Floor'}</span>
+            </button>
+          )}
+
+          {roomImage && (
+            <button
+              onClick={() => setRoomImage(null)}
+              className="text-xs text-[#9B958E] hover:text-[#C84B4B] px-2 py-1 transition cursor-pointer"
+            >
+              Clear Photo
             </button>
           )}
         </div>
@@ -243,34 +254,38 @@ export const FurnitureToolbar: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsCatalogOpen(true)}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-semibold rounded-xl shadow-lg transition flex items-center gap-1.5"
+            className="px-4 py-2 bg-[#8B5E3C] hover:bg-[#634027] text-white text-xs font-medium rounded-[10px] shadow-sm transition flex items-center gap-1.5 cursor-pointer"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Furniture (+{CATALOG_ITEMS.length})
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Furniture</span>
           </button>
         </div>
 
-        {/* Right: Environment Settings & Save */}
+        {/* Right: Lighting, Grid & Save */}
         <div className="flex items-center gap-2">
           {/* Lighting Mode */}
-          <div className="flex bg-stone-950 p-1 rounded-xl border border-stone-800 text-[11px]">
+          <div className="flex bg-[#F4F2EF] p-1 rounded-[10px] border border-[#E5E0DA] text-[11px]">
             <button
               onClick={() => setLightingMode('warm')}
-              className={`px-2 py-1 rounded-lg transition ${lightingMode === 'warm' ? 'bg-amber-600 text-stone-950 font-semibold' : 'text-stone-400'}`}
+              className={`px-2.5 py-1 rounded-[6px] transition cursor-pointer ${
+                lightingMode === 'warm' ? 'bg-[#8B5E3C] text-white font-medium shadow-2xs' : 'text-[#6F6A64] hover:text-[#24211E]'
+              }`}
             >
               Warm
             </button>
             <button
               onClick={() => setLightingMode('studio')}
-              className={`px-2 py-1 rounded-lg transition ${lightingMode === 'studio' ? 'bg-amber-600 text-stone-950 font-semibold' : 'text-stone-400'}`}
+              className={`px-2.5 py-1 rounded-[6px] transition cursor-pointer ${
+                lightingMode === 'studio' ? 'bg-[#8B5E3C] text-white font-medium shadow-2xs' : 'text-[#6F6A64] hover:text-[#24211E]'
+              }`}
             >
               Studio
             </button>
             <button
               onClick={() => setLightingMode('daylight')}
-              className={`px-2 py-1 rounded-lg transition ${lightingMode === 'daylight' ? 'bg-amber-600 text-stone-950 font-semibold' : 'text-stone-400'}`}
+              className={`px-2.5 py-1 rounded-[6px] transition cursor-pointer ${
+                lightingMode === 'daylight' ? 'bg-[#8B5E3C] text-white font-medium shadow-2xs' : 'text-[#6F6A64] hover:text-[#24211E]'
+              }`}
             >
               Daylight
             </button>
@@ -278,109 +293,80 @@ export const FurnitureToolbar: React.FC = () => {
 
           <button
             onClick={toggleGrid}
-            className={`p-2 rounded-xl border text-xs transition ${showGrid ? 'bg-stone-800 text-amber-400 border-amber-500/40' : 'bg-stone-900 text-stone-500 border-stone-800'}`}
+            className={`p-2 rounded-[10px] border text-xs transition cursor-pointer ${
+              showGrid ? 'bg-[#F3E8DE] text-[#8B5E3C] border-[#8B5E3C]/30' : 'bg-[#F4F2EF] text-[#9B958E] border-[#E5E0DA]'
+            }`}
             title="Toggle Floor Grid"
           >
-            #
+            <Grid className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={handleOpenSaveDialog}
             disabled={isSaving}
-            className="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-semibold rounded-xl transition shadow-md flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#24211E] text-xs font-medium rounded-[10px] border border-[#E5E0DA] transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
-            <span>💾 Save Design</span>
+            <Save className="w-3.5 h-3.5 text-[#8B5E3C]" />
+            <span>Save Design</span>
           </button>
 
           <Link
             href="/designs"
-            className="px-3.5 py-2 bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium rounded-xl border border-stone-700/60 transition flex items-center gap-1.5"
+            className="px-3 py-2 bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#6F6A64] hover:text-[#24211E] text-xs font-medium rounded-[10px] border border-[#E5E0DA] transition flex items-center gap-1.5"
           >
-            <span>🛋️ My Designs</span>
+            <Layers className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">My Designs</span>
           </Link>
 
           <button
             onClick={clearScene}
-            className="px-2.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium"
-            title="Reset Studio"
+            className="p-2 text-[#9B958E] hover:text-[#C84B4B] text-xs rounded-[10px] transition cursor-pointer"
+            title="Clear All Furniture"
           >
-            Reset
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Save Room Design Modal (TICKET-029) */}
+      {/* Save Room Design Modal */}
       {isSaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white border border-[#E5E0DA] rounded-[16px] max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E5E0DA] pb-3">
               <div>
-                <h3 className="text-base font-serif font-bold text-white">Save Room Design</h3>
-                <p className="text-[11px] text-stone-400 mt-0.5">Persist this 3D layout & furniture placement to your account</p>
+                <h3 className="text-base font-serif font-medium text-[#24211E]">Save Room Design</h3>
+                <p className="text-xs text-[#6F6A64] mt-0.5">Persist this 3D layout to your account</p>
               </div>
-              <button onClick={() => setIsSaveModalOpen(false)} className="text-stone-400 hover:text-white">✕</button>
+              <button onClick={() => setIsSaveModalOpen(false)} className="text-[#9B958E] hover:text-[#24211E]">✕</button>
             </div>
 
             <form onSubmit={handleConfirmSaveDesign} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1.5">Design Name</label>
+                <label className="block text-xs font-medium text-[#24211E] mb-1.5">Design Name</label>
                 <input
                   type="text"
                   required
                   value={customDesignName}
                   onChange={(e) => setCustomDesignName(e.target.value)}
-                  placeholder="e.g., Living Room, Master Bedroom, New Apartment"
-                  className="w-full px-4 py-2.5 bg-stone-950 border border-stone-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition"
-                  autoFocus
+                  placeholder="e.g., Living Room, Bedroom"
+                  className="w-full bg-[#FAF9F7] border border-[#E5E0DA] rounded-[10px] px-3.5 py-2.5 text-xs text-[#24211E] placeholder-[#9B958E] focus:outline-none focus:border-[#8B5E3C]"
                 />
               </div>
 
-              {/* Quick suggestions */}
-              <div>
-                <span className="text-[11px] text-stone-400 block mb-1.5">Quick Suggestions:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {['Living Room', 'Master Bedroom', 'New Apartment', 'Guest Room', 'Home Office'].map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setCustomDesignName(tag)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
-                        customDesignName === tag
-                          ? 'bg-amber-600/30 border-amber-500 text-amber-300'
-                          : 'bg-stone-950 border-stone-800 text-stone-400 hover:text-white hover:border-stone-700'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-stone-950/60 rounded-xl p-3 text-[11px] text-stone-400 border border-stone-800 space-y-1">
-                <div className="flex justify-between">
-                  <span>Furniture Pieces:</span>
-                  <strong className="text-stone-200">{placedFurniture.length} items</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Room Background:</span>
-                  <span className="text-stone-200 truncate max-w-[180px]">{roomImage ? 'Custom Photo Attached' : 'Default 3D Grid'}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsSaveModalOpen(false)}
-                  className="flex-1 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl text-xs font-medium transition"
+                  className="px-4 py-2 bg-[#F4F2EF] hover:bg-[#FAF9F7] text-[#6F6A64] rounded-[10px] text-xs border border-[#E5E0DA] transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving || !customDesignName.trim()}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 shadow-md"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-[#8B5E3C] hover:bg-[#634027] disabled:opacity-50 text-white font-medium rounded-[10px] text-xs transition shadow-sm"
                 >
-                  {isSaving ? 'Saving...' : 'Save to My Designs'}
+                  {isSaving ? 'Saving...' : 'Save Design'}
                 </button>
               </div>
             </form>
@@ -388,65 +374,66 @@ export const FurnitureToolbar: React.FC = () => {
         </div>
       )}
 
-      {/* Room Presets Dropdown */}
+      {/* Presets Modal */}
       {isPresetsOpen && (
-        <div className="p-4 bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {ROOM_PRESETS.map((preset) => (
-            <button
-              key={preset.name}
-              onClick={() => {
-                setRoomImage(preset.url, null, preset.name);
-                setIsPresetsOpen(false);
-              }}
-              className="text-left group relative rounded-xl overflow-hidden border border-stone-800 hover:border-amber-500 transition"
-            >
-              <img src={preset.url} alt={preset.name} className="w-full h-24 object-cover group-hover:scale-105 transition duration-300" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2.5 flex items-end">
-                <span className="text-xs font-medium text-white">{preset.name}</span>
-              </div>
-            </button>
-          ))}
+        <div className="p-4 bg-white rounded-[16px] border border-[#E5E0DA] shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-serif font-medium text-[#24211E]">Select Room Preset</h4>
+            <button onClick={() => setIsPresetsOpen(false)} className="text-xs text-[#9B958E] hover:text-[#24211E]">✕</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {ROOM_PRESETS.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => {
+                  setRoomImage(preset.url, null, preset.name);
+                  setIsPresetsOpen(false);
+                }}
+                className="group p-2 bg-[#FAF9F7] hover:bg-[#F3E8DE] border border-[#E5E0DA] rounded-[12px] text-left transition space-y-2 cursor-pointer"
+              >
+                <img
+                  src={preset.url}
+                  alt={preset.name}
+                  className="w-full h-24 object-cover rounded-[8px] border border-[#E5E0DA]"
+                />
+                <p className="text-xs font-medium text-[#24211E] truncate group-hover:text-[#8B5E3C]">
+                  {preset.name}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Add Furniture Catalog Modal */}
+      {/* Catalog Item Chooser Drawer */}
       {isCatalogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
-              <h3 className="text-base font-semibold text-white">Select Furniture to Place in Room</h3>
-              <button onClick={() => setIsCatalogOpen(false)} className="text-stone-400 hover:text-white">✕</button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
-              {CATALOG_ITEMS.map((item) => (
-                <div
-                  key={item.productId}
-                  className="bg-stone-950 border border-stone-800 rounded-xl p-3 flex gap-3 hover:border-amber-500/80 transition"
-                >
-                  <img
-                    src={item.previewImageUrl}
-                    alt={item.name}
-                    className="w-20 h-20 object-cover rounded-lg bg-stone-900 flex-shrink-0"
-                  />
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-xs font-semibold text-white">{item.name}</h4>
-                      <p className="text-xs text-amber-400 font-bold mt-0.5">${item.price.toFixed(2)}</p>
-                      <p className="text-[10px] text-stone-400 mt-1">
-                        {item.dimensions.widthCm}×{item.dimensions.heightCm}×{item.dimensions.depthCm} cm
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleAddCatalogItem(item)}
-                      className="mt-2 w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs rounded-lg transition"
-                    >
-                      + Place in Studio
-                    </button>
-                  </div>
+        <div className="p-4 bg-white rounded-[16px] border border-[#E5E0DA] shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-serif font-medium text-[#24211E]">Add Furniture Piece to Scene</h4>
+            <button onClick={() => setIsCatalogOpen(false)} className="text-xs text-[#9B958E] hover:text-[#24211E]">✕</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {CATALOG_ITEMS.map((item) => (
+              <button
+                key={item.productId}
+                onClick={() => handleAddCatalogItem(item)}
+                className="group p-2.5 bg-[#FAF9F7] hover:bg-[#F3E8DE] border border-[#E5E0DA] rounded-[12px] text-left transition space-y-2 cursor-pointer flex flex-col justify-between"
+              >
+                <img
+                  src={item.previewImageUrl}
+                  alt={item.name}
+                  className="w-full h-24 object-cover rounded-[8px] border border-[#E5E0DA] bg-white"
+                />
+                <div>
+                  <h5 className="text-xs font-medium text-[#24211E] truncate group-hover:text-[#8B5E3C]">
+                    {item.name}
+                  </h5>
+                  <p className="text-[11px] text-[#6F6A64]">
+                    ${item.price.toFixed(2)} • {item.dimensions.widthCm}cm
+                  </p>
                 </div>
-              ))}
-            </div>
+              </button>
+            ))}
           </div>
         </div>
       )}

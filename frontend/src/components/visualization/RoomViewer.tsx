@@ -7,7 +7,19 @@ import { useVisualizationStore } from '../../store/visualizationStore';
 import { PlacedFurniture } from '../../types/visualization';
 import { setupLightingAndEnvironment, LightingRig } from './LightingEnvironment';
 import { loadFurnitureModel } from './ModelLoader';
-import { Camera, Eye, Layers, Compass, RotateCcw, Lock, Move, RotateCw } from 'lucide-react';
+import { RoomFloorAlignmentController } from './RoomFloorAlignmentController';
+import {
+  Camera,
+  Eye,
+  Layers,
+  Compass,
+  RotateCcw,
+  Lock,
+  Move,
+  RotateCw,
+  Sliders,
+  CheckCircle2,
+} from 'lucide-react';
 
 export const RoomViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +51,8 @@ export const RoomViewer: React.FC = () => {
     lightingMode,
     showGrid,
     showShadows,
+    floorAlignment,
+    startFloorAdjustment,
   } = useVisualizationStore();
 
   const selectedItem = placedFurniture.find((f) => f.id === selectedFurnitureId);
@@ -90,26 +104,26 @@ export const RoomViewer: React.FC = () => {
     controls.maxPolarAngle = Math.PI / 2 - 0.03;
     controlsRef.current = controls;
 
-    // 6. Subtle Selection Indicator Rig (Floor footprint ring + forward indicator)
+    // 6. Subtle Selection Indicator Rig in FunArray Colors (#8B5E3C & #D49A6A)
     const selectionGroup = new THREE.Group();
     selectionGroup.name = 'selectionIndicator';
     selectionGroup.visible = false;
 
-    // Floor footprint subtle glowing ring
+    // Floor footprint subtle glowing ring in #8B5E3C
     const ringGeo = new THREE.RingGeometry(0.35, 0.38, 48);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b,
+      color: 0x8b5e3c,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.7,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
     const footprintRing = new THREE.Mesh(ringGeo, ringMat);
     footprintRing.rotation.x = -Math.PI / 2;
-    footprintRing.position.y = 0.003; // slightly above floor to prevent z-fighting
+    footprintRing.position.y = 0.003;
     selectionGroup.add(footprintRing);
 
-    // Forward Direction Arrow
+    // Forward Direction Arrow in Active Handle #D49A6A
     const arrowGeo = new THREE.BufferGeometry();
     const arrowVertices = new Float32Array([
       0, 0.004, -0.48, // tip forward
@@ -118,9 +132,9 @@ export const RoomViewer: React.FC = () => {
     ]);
     arrowGeo.setAttribute('position', new THREE.BufferAttribute(arrowVertices, 3));
     const arrowMat = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b,
+      color: 0xd49a6a,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
@@ -181,6 +195,49 @@ export const RoomViewer: React.FC = () => {
     };
   }, []);
 
+  // Synchronize Camera & Floor Elevation with Room Photo Floor Alignment
+  useEffect(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const rig = lightingRigRef.current;
+    if (!camera) return;
+
+    if (roomImage) {
+      // Apply calibrated camera intrinsics & extrinsics
+      camera.fov = floorAlignment.cameraFov;
+      camera.updateProjectionMatrix();
+
+      const camZ = 3.6 * floorAlignment.depthScale;
+      camera.position.set(0, floorAlignment.cameraHeight, camZ);
+
+      // LookAt with pitch angle offset
+      const pitchRad = THREE.MathUtils.degToRad(floorAlignment.pitchAngle);
+      const targetY = floorAlignment.elevation + Math.tan(pitchRad) * camZ * 0.5;
+
+      if (controls) {
+        controls.target.set(0, targetY, 0);
+        controls.update();
+      } else {
+        camera.lookAt(0, targetY, 0);
+      }
+
+      // Update Drag Plane to sit exactly at calibrated floor elevation
+      dragPlaneRef.current.set(new THREE.Vector3(0, 1, 0), -floorAlignment.elevation);
+
+      // Update Grid and Contact Shadow plane height
+      if (rig) {
+        rig.gridHelper.position.y = floorAlignment.elevation;
+        rig.contactShadow.position.y = floorAlignment.elevation + 0.001;
+      }
+    } else {
+      dragPlaneRef.current.set(new THREE.Vector3(0, 1, 0), 0);
+      if (rig) {
+        rig.gridHelper.position.y = 0;
+        rig.contactShadow.position.y = 0.001;
+      }
+    }
+  }, [roomImage, floorAlignment]);
+
   // Synchronize Lighting Mode and Display Toggles
   useEffect(() => {
     if (!lightingRigRef.current) return;
@@ -209,6 +266,8 @@ export const RoomViewer: React.FC = () => {
 
     // Load and update active items
     const syncFurniture = async () => {
+      const floorY = roomImage ? floorAlignment.elevation : 0;
+
       for (const item of placedFurniture) {
         let group = currentMap.get(item.id);
 
@@ -227,8 +286,8 @@ export const RoomViewer: React.FC = () => {
         }
 
         if (group) {
-          // Update transform
-          group.position.set(item.position[0], 0, item.position[2]);
+          // Update transform to sit directly on calibrated floor
+          group.position.set(item.position[0], floorY, item.position[2]);
           group.rotation.set(
             THREE.MathUtils.degToRad(item.rotation[0]),
             THREE.MathUtils.degToRad(item.rotation[1]),
@@ -242,9 +301,8 @@ export const RoomViewer: React.FC = () => {
       if (selectionIndicatorRef.current) {
         if (selectedFurnitureId && currentMap.has(selectedFurnitureId)) {
           const targetGroup = currentMap.get(selectedFurnitureId)!;
-          const targetItem = placedFurniture.find((f) => f.id === selectedFurnitureId);
           
-          selectionIndicatorRef.current.position.set(targetGroup.position.x, 0, targetGroup.position.z);
+          selectionIndicatorRef.current.position.set(targetGroup.position.x, floorY, targetGroup.position.z);
           selectionIndicatorRef.current.rotation.y = targetGroup.rotation.y;
           
           // Match footprint scale to furniture bounds
@@ -266,9 +324,9 @@ export const RoomViewer: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [placedFurniture, selectedFurnitureId]);
+  }, [placedFurniture, selectedFurnitureId, roomImage, floorAlignment.elevation]);
 
-  // Viewpoint Preset Handlers
+  // Viewpoint Preset Handlers (for 3D Studio mode without room photo)
   const setCameraView = (preset: 'eye-level' | 'perspective' | 'top-down') => {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
@@ -291,6 +349,9 @@ export const RoomViewer: React.FC = () => {
 
   // Pointer Interaction: Selection & Smooth Floor Dragging (Prevents Floating)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // If user is in floor adjustment mode, let floor controller handle inputs
+    if (floorAlignment.isAdjusting) return;
+
     const container = containerRef.current;
     const camera = cameraRef.current;
     const scene = sceneRef.current;
@@ -346,7 +407,7 @@ export const RoomViewer: React.FC = () => {
     raycasterRef.current.ray.intersectPlane(dragPlaneRef.current, intersectionPoint);
 
     if (intersectionPoint) {
-      // Strictly maintain base on floor (Y = 0) and smooth clamp within room bounds
+      // Strictly maintain base on floor and smooth clamp within room bounds
       const clampedX = Math.max(-4.5, Math.min(4.5, Math.round(intersectionPoint.x * 20) / 20));
       const clampedZ = Math.max(-4.5, Math.min(4.5, Math.round(intersectionPoint.z * 20) / 20));
 
@@ -361,6 +422,8 @@ export const RoomViewer: React.FC = () => {
 
   // Mobile Two-Finger Twist / Rotation Handler
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (floorAlignment.isAdjusting) return;
+
     if (e.touches.length === 2 && selectedFurnitureId) {
       const t0 = e.touches[0];
       const t1 = e.touches[1];
@@ -405,22 +468,22 @@ export const RoomViewer: React.FC = () => {
     <div className="relative w-full h-[620px] bg-stone-950 rounded-2xl overflow-hidden border border-stone-800/80 shadow-2xl select-none group touch-none">
       {/* 1. ROOM PHOTO COMPOSITE BACKDROP */}
       {roomImage ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-stone-950 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#FAF9F7] overflow-hidden pointer-events-none">
           <img
             src={roomImage}
             alt="Room Background"
             className="w-full h-full object-contain filter brightness-95 contrast-105 transition-all duration-500"
           />
-          <div className="absolute inset-0 bg-stone-950/20 backdrop-blur-[0.2px]" />
+          <div className="absolute inset-0 bg-stone-900/10 backdrop-blur-[0.2px]" />
         </div>
       ) : (
-        <div className="absolute inset-0 bg-radial from-stone-900 via-stone-950 to-stone-950 flex flex-col items-center justify-center pointer-events-none p-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-stone-900/80 border border-stone-800 flex items-center justify-center text-amber-500 mb-3 shadow-inner">
-            <Layers className="w-8 h-8" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F7] via-[#F4F2EF] to-[#EBE7E2] flex flex-col items-center justify-center pointer-events-none p-6 text-center">
+          <div className="w-14 h-14 rounded-[14px] bg-white border border-[#E5E0DA] flex items-center justify-center text-[#8B5E3C] mb-2.5 shadow-2xs">
+            <Layers className="w-6 h-6" />
           </div>
-          <p className="text-stone-300 font-medium text-sm">Interactive 3D Room & Spatial Studio</p>
-          <p className="text-stone-500 text-xs mt-1 max-w-sm">
-            Drag to move on floor • Two fingers to rotate • Tap empty floor to deselect.
+          <p className="text-[#24211E] font-serif font-medium text-sm">3D Furniture Preview Canvas</p>
+          <p className="text-[#6F6A64] text-xs mt-0.5 max-w-sm">
+            Drag to position • Two fingers to rotate • Upload photo to fit your room
           </p>
         </div>
       )}
@@ -437,69 +500,89 @@ export const RoomViewer: React.FC = () => {
         className="absolute inset-0 cursor-grab active:cursor-grabbing z-10"
       />
 
-      {/* 3. FLOATING STATUS BADGES */}
-      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
-        <span className="px-3 py-1.5 bg-stone-900/85 backdrop-blur-md border border-stone-800 text-xs text-stone-300 rounded-xl shadow-lg font-medium flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      {/* 3. INTERACTIVE ROOM FLOOR ALIGNMENT CONTROLLER */}
+      <RoomFloorAlignmentController />
+
+      {/* 4. FLOATING STATUS BADGES & ADJUST FLOOR ACTION */}
+      <div className="absolute top-3.5 left-3.5 z-20 flex flex-wrap items-center gap-2 pointer-events-auto">
+        <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md border border-[#E5E0DA] text-xs text-[#24211E] rounded-[10px] shadow-sm font-medium flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#2F7D50]" />
           <span>{placedFurniture.length} {placedFurniture.length === 1 ? 'Piece Placed' : 'Pieces Placed'}</span>
         </span>
 
-        {selectedItem && (
-          <span className="px-3 py-1.5 bg-stone-900/85 backdrop-blur-md border border-amber-500/40 text-xs text-amber-400 rounded-xl shadow-lg font-semibold flex items-center gap-1.5">
-            {selectedItem.isLocked ? <Lock className="w-3 h-3 text-amber-400" /> : <Move className="w-3 h-3 text-amber-400" />}
+        {roomImage && (
+          <button
+            onClick={startFloorAdjustment}
+            className={`px-3 py-1.5 text-xs font-medium rounded-[10px] border shadow-sm transition flex items-center gap-1.5 cursor-pointer ${
+              floorAlignment.isAdjusting
+                ? 'bg-[#8B5E3C] text-white border-[#8B5E3C]'
+                : 'bg-white/95 backdrop-blur-md text-[#8B5E3C] border-[#8B5E3C]/30 hover:bg-[#F3E8DE]'
+            }`}
+            title="Calibrate 3D floor perspective to match your room photo"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>{floorAlignment.isAdjusting ? 'Aligning Floor...' : 'Adjust Floor'}</span>
+          </button>
+        )}
+
+        {selectedItem && !floorAlignment.isAdjusting && (
+          <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md border border-[#8B5E3C]/30 text-xs text-[#8B5E3C] rounded-[10px] shadow-sm font-medium flex items-center gap-1.5 pointer-events-none">
+            {selectedItem.isLocked ? <Lock className="w-3 h-3 text-[#8B5E3C]" /> : <Move className="w-3 h-3 text-[#8B5E3C]" />}
             <span>Selected: {selectedItem.name} {selectedItem.isLocked ? '(Locked)' : ''}</span>
           </span>
         )}
 
         {isLoadingModels && (
-          <span className="px-3 py-1.5 bg-stone-900/85 backdrop-blur-md border border-stone-800 text-xs text-amber-400 rounded-xl shadow-lg flex items-center gap-1.5">
-            <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md border border-[#E5E0DA] text-xs text-[#8B5E3C] rounded-[10px] shadow-sm flex items-center gap-1.5 pointer-events-none">
+            <div className="w-3 h-3 border-2 border-[#8B5E3C] border-t-transparent rounded-full animate-spin" />
             <span>Loading 3D asset...</span>
           </span>
         )}
       </div>
 
-      {/* 4. CAMERA VIEWPOINT PRESET SELECTOR */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-1 bg-stone-900/85 backdrop-blur-md p-1 rounded-xl border border-stone-800 shadow-xl">
-        <button
-          onClick={() => setCameraView('eye-level')}
-          title="Human Eye Level (1.35m)"
-          className={`px-2.5 py-1 text-xs rounded-lg font-medium transition flex items-center gap-1.5 ${
-            viewPreset === 'eye-level'
-              ? 'bg-amber-500 text-stone-950 shadow-sm'
-              : 'text-stone-300 hover:bg-stone-800'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Eye Level</span>
-        </button>
+      {/* 5. CAMERA VIEWPOINT PRESET SELECTOR (When in 3D studio mode without room photo) */}
+      {!roomImage && (
+        <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-[10px] border border-[#E5E0DA] shadow-sm">
+          <button
+            onClick={() => setCameraView('eye-level')}
+            title="Human Eye Level (1.35m)"
+            className={`px-2.5 py-1 text-xs rounded-[6px] font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              viewPreset === 'eye-level'
+                ? 'bg-[#8B5E3C] text-white shadow-2xs'
+                : 'text-[#6F6A64] hover:text-[#24211E] hover:bg-[#F4F2EF]'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Eye Level</span>
+          </button>
 
-        <button
-          onClick={() => setCameraView('perspective')}
-          title="Studio 3D Perspective"
-          className={`px-2.5 py-1 text-xs rounded-lg font-medium transition flex items-center gap-1.5 ${
-            viewPreset === 'perspective'
-              ? 'bg-amber-500 text-stone-950 shadow-sm'
-              : 'text-stone-300 hover:bg-stone-800'
-          }`}
-        >
-          <Compass className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">3D Studio</span>
-        </button>
+          <button
+            onClick={() => setCameraView('perspective')}
+            title="Studio 3D Perspective"
+            className={`px-2.5 py-1 text-xs rounded-[6px] font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              viewPreset === 'perspective'
+                ? 'bg-[#8B5E3C] text-white shadow-2xs'
+                : 'text-[#6F6A64] hover:text-[#24211E] hover:bg-[#F4F2EF]'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Studio</span>
+          </button>
 
-        <button
-          onClick={() => setCameraView('top-down')}
-          title="Top-down Floorplan Layout"
-          className={`px-2.5 py-1 text-xs rounded-lg font-medium transition flex items-center gap-1.5 ${
-            viewPreset === 'top-down'
-              ? 'bg-amber-500 text-stone-950 shadow-sm'
-              : 'text-stone-300 hover:bg-stone-800'
-          }`}
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Floor Plan</span>
-        </button>
-      </div>
+          <button
+            onClick={() => setCameraView('top-down')}
+            title="Top-down Floorplan Layout"
+            className={`px-2.5 py-1 text-xs rounded-[6px] font-medium transition flex items-center gap-1.5 cursor-pointer ${
+              viewPreset === 'top-down'
+                ? 'bg-[#8B5E3C] text-white shadow-2xs'
+                : 'text-[#6F6A64] hover:text-[#24211E] hover:bg-[#F4F2EF]'
+            }`}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Plan</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

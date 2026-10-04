@@ -1,26 +1,25 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Product } from "@/types/product";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/utils";
+import * as React from 'react';
+import { Product } from '@/types/product';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { formatPrice } from '@/lib/utils';
+import { useVisualizationStore } from '@/store/visualizationStore';
+import { RoomViewer } from '../visualization/RoomViewer';
+import { FurnitureControls } from '../visualization/FurnitureControls';
+import { CameraARViewer } from './camera-ar-viewer';
 import {
-  Box,
   Camera,
   UploadCloud,
-  CheckCircle2,
-  RotateCw,
-  Move,
-  Lock,
-  ShoppingBag,
-  Sparkles,
   Layers,
-  Info
-} from "lucide-react";
-
-import { CameraARViewer } from "./camera-ar-viewer";
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  Lock,
+  Sparkles,
+} from 'lucide-react';
 
 export interface ARPreviewModalProps {
   isOpen: boolean;
@@ -35,221 +34,190 @@ export function ARPreviewModal({
   product,
   onAddToCart,
 }: ARPreviewModalProps) {
-  const [activeStep, setActiveStep] = React.useState<"select-mode" | "uploading" | "preview" | "camera-ar">("select-mode");
-  const [rotationAngle, setRotationAngle] = React.useState(0);
-  const [isSaved, setIsSaved] = React.useState(false);
-  const [isAdded, setIsAdded] = React.useState(false);
+  const {
+    viewMode,
+    setViewMode,
+    setProductForVisualization,
+    placedFurniture,
+    selectedFurnitureId,
+    setRoomImage,
+    roomImage,
+  } = useVisualizationStore();
 
+  const [activeStep, setActiveStep] = React.useState<'select-mode' | 'room-photo' | 'camera-ar'>('select-mode');
+
+  // Synchronize product into visualization store when modal opens
   React.useEffect(() => {
-    if (isOpen) {
-      setActiveStep("select-mode");
-      setRotationAngle(0);
-      setIsSaved(false);
-      setIsAdded(false);
+    if (isOpen && product) {
+      setProductForVisualization(product);
+      setActiveStep('select-mode');
     }
-  }, [isOpen, product]);
+  }, [isOpen, product, setProductForVisualization]);
 
   if (!product) return null;
 
-  const handleSimulateUpload = () => {
-    setActiveStep("uploading");
-    setTimeout(() => {
-      setActiveStep("preview");
-    }, 1400);
-  };
-
-  const handleStartCameraAR = () => {
-    setActiveStep("camera-ar");
-  };
-
-  const handleAddToCart = () => {
-    setIsAdded(true);
-    if (onAddToCart) onAddToCart(product);
-    setTimeout(() => {
-      onClose();
-    }, 1000);
+  const handleSelectMode = (mode: 'room-photo' | 'camera-ar') => {
+    setViewMode(mode);
+    setActiveStep(mode);
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="View in Your Room (AR Preview)"
-      description="Calibrated true-scale spatial visualization engine"
-      className="max-w-2xl"
+      title="View in Your Room"
+      description="Interactive 3D Furniture Simulator & True-Scale Camera AR"
+      className="max-w-4xl max-h-[90vh] overflow-y-auto no-scrollbar"
     >
-      <div className="space-y-6 pt-2">
-        {/* Product Reference Bar */}
-        <div className="p-3.5 bg-[#FAF9F7] rounded-[12px] border border-[#E5E0DA] flex items-center justify-between gap-4">
+      <div className="space-y-5 pt-1">
+        {/* Product Reference Header */}
+        <div className="p-3.5 bg-stone-900/90 rounded-2xl border border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
-              src={product.images[0]?.imageUrl}
+              src={product.images?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80'}
               alt={product.name}
-              className="w-14 h-14 object-cover rounded-[8px] border border-[#E5E0DA]"
+              className="w-14 h-14 object-cover rounded-xl border border-stone-800 bg-stone-950 shrink-0"
             />
             <div>
-              <h4 className="text-sm font-semibold text-[#24211E]">{product.name}</h4>
-              <p className="text-xs text-[#6F6A64]">
-                Dimensions: {product.dimensions.widthCm} × {product.dimensions.heightCm} × {product.dimensions.depthCm} cm
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-white">{product.name}</h4>
+                <Badge variant="ar" className="text-[10px]">
+                  1:1 Scale
+                </Badge>
+              </div>
+              <p className="text-xs text-stone-400 font-mono mt-0.5">
+                {product.dimensions.widthCm} × {product.dimensions.heightCm} × {product.dimensions.depthCm} cm • {product.material}
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <span className="text-sm font-bold text-[#24211E] block">{formatPrice(product.basePrice)}</span>
-            <Badge variant="ar" size="sm">Scale 1:1 Locked</Badge>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="text-sm font-bold text-white font-mono">{formatPrice(product.basePrice)}</span>
+
+            {activeStep !== 'select-mode' && (
+              <div className="flex items-center bg-stone-950 p-1 rounded-xl border border-stone-800 text-xs">
+                <button
+                  onClick={() => handleSelectMode('room-photo')}
+                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                    activeStep === 'room-photo'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>Room Photo</span>
+                </button>
+                <button
+                  onClick={() => handleSelectMode('camera-ar')}
+                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                    activeStep === 'camera-ar'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Camera AR</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* STEP 1: Select Visualization Mode */}
-        {activeStep === "select-mode" && (
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#6F6A64]">
-              Select Visualization Mode (Section 13)
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* STEP 1: Mode Chooser */}
+        {activeStep === 'select-mode' && (
+          <div className="space-y-4 py-2">
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-serif font-medium text-white">Choose Your Preview Experience</h3>
+              <p className="text-xs text-stone-400 max-w-md mx-auto">
+                Both modes use the exact same 1:1 true-to-scale 3D models, PBR materials, and real-time furniture manipulation.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {/* Mode 1: Room Photo Visualization */}
               <button
-                onClick={handleSimulateUpload}
-                className="p-5 rounded-[16px] border-2 border-[#8B5E3C] bg-[#F3E8DE]/40 hover:bg-[#F3E8DE] text-left transition-all cursor-pointer space-y-2 group"
+                onClick={() => handleSelectMode('room-photo')}
+                className="p-5 rounded-2xl border-2 border-amber-500/60 bg-stone-900/90 hover:bg-stone-850 hover:border-amber-400 text-left transition-all cursor-pointer space-y-3 group shadow-xl"
               >
-                <div className="w-10 h-10 rounded-[10px] bg-[#8B5E3C] text-white flex items-center justify-center group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <UploadCloud className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-sm text-[#24211E]">Mode 1: Upload Room Photo</h4>
-                <p className="text-xs text-[#6F6A64]">
-                  Upload a photo of your living room or bedroom. The 3D model will be fitted onto the floor with perspective matching.
-                </p>
-                <span className="text-[11px] font-bold text-[#8B5E3C] block pt-1">
-                  Recommended for Desktop & Laptop →
-                </span>
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm text-white flex items-center justify-between">
+                    <span>Mode 1: Room Photo Visualization</span>
+                    <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
+                  </h4>
+                  <p className="text-xs text-stone-400 leading-relaxed">
+                    Upload a photograph of your room. Our floor-alignment engine matches camera perspective, contact shadows, and dimensions.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-amber-400 font-medium pt-1">
+                  <span>✓ Photo Upload & Presets</span>
+                  <span>•</span>
+                  <span>✓ Perspective Calibration</span>
+                </div>
               </button>
 
+              {/* Mode 2: Camera AR */}
               <button
-                onClick={handleStartCameraAR}
-                className="p-5 rounded-[16px] border border-[#E5E0DA] bg-white hover:border-[#8B5E3C] hover:bg-[#F4F2EF] text-left transition-all cursor-pointer space-y-2 group"
+                onClick={() => handleSelectMode('camera-ar')}
+                className="p-5 rounded-2xl border border-stone-800 bg-stone-900/60 hover:bg-stone-850 hover:border-amber-500/60 text-left transition-all cursor-pointer space-y-3 group shadow-xl"
               >
-                <div className="w-10 h-10 rounded-[10px] bg-[#24211E] text-[#D49A6A] flex items-center justify-center group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-stone-800 text-amber-400 border border-stone-700 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <Camera className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-sm text-[#24211E]">Mode 2: Mobile Camera AR</h4>
-                <p className="text-xs text-[#6F6A64]">
-                  Scan your room surface in real-time via WebXR surface detection. True millimeter scale in your space.
-                </p>
-                <span className="text-[11px] font-bold text-[#8B5E3C] block pt-1">
-                  Launch Live Camera AR →
-                </span>
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm text-white flex items-center justify-between">
+                    <span>Mode 2: Live Camera AR</span>
+                    <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
+                  </h4>
+                  <p className="text-xs text-stone-400 leading-relaxed">
+                    Scan your floor in real-time with WebXR surface detection. Place, rotate, and walk around the furniture in live AR.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-medium pt-1">
+                  <span>✓ WebXR Surface Tracking</span>
+                  <span>•</span>
+                  <span>✓ Contact Shadows</span>
+                </div>
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Live Camera AR Mode */}
-        {activeStep === "camera-ar" && (
-          <div className="space-y-3">
-            <CameraARViewer
-              product={product}
-              onFallbackToPhotoUpload={() => handleSimulateUpload()}
-              onAddToCart={onAddToCart}
-              onClose={onClose}
+        {/* MODE 1: Room Photo Visualization */}
+        {activeStep === 'room-photo' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl overflow-hidden border border-stone-800 bg-stone-950">
+              <RoomViewer />
+            </div>
+            <FurnitureControls
+              onSwitchMode={(m) => {
+                if (m === 'camera-ar') setActiveStep('camera-ar');
+              }}
             />
           </div>
         )}
 
-        {/* STEP 2: Processing & Surface Detection Simulation */}
-        {activeStep === "uploading" && (
-          <div className="p-8 text-center space-y-4 bg-[#FAF9F7] rounded-[16px] border border-[#E5E0DA]">
-            <div className="w-12 h-12 rounded-full border-3 border-[#8B5E3C] border-t-transparent animate-spin mx-auto" />
-            <div className="space-y-1">
-              <h4 className="font-serif text-lg font-medium text-[#24211E]">Analyzing Room Geometry</h4>
-              <p className="text-xs text-[#6F6A64]">Detecting floor planes and estimating lighting vectors...</p>
-            </div>
-            <div className="flex items-center justify-center gap-4 text-xs text-[#2F7D50] pt-2">
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Floor detected</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Perspective locked</span>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 3: Interactive 3D Spatial Canvas */}
-        {activeStep === "preview" && (
+        {/* MODE 2: Camera AR */}
+        {activeStep === 'camera-ar' && (
           <div className="space-y-4">
-            {/* 3D Scene Viewport */}
-            <div className="relative aspect-[16/10] bg-[#24211E] rounded-[16px] overflow-hidden border border-[#E5E0DA] flex items-center justify-center">
-              {/* Simulated Room Backdrop */}
-              <img
-                src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80"
-                alt="Room backdrop"
-                className="absolute inset-0 w-full h-full object-cover opacity-65"
-              />
-
-              {/* Surface Detection Grid Overlay */}
-              <div className="absolute inset-x-8 bottom-4 h-24 border-2 border-dashed border-[#7BAE8A]/70 rounded-[12px] bg-[#7BAE8A]/10 flex items-center justify-center pointer-events-none">
-                <span className="text-[10px] text-[#7BAE8A] uppercase tracking-wider font-semibold">
-                  Detected Floor Plane (True Scale)
-                </span>
-              </div>
-
-              {/* Placed 3D Furniture with Dynamic Rotation */}
-              <div
-                className="relative z-10 p-4 transition-transform duration-300 drop-shadow-[0_20px_20px_rgba(0,0,0,0.6)]"
-                style={{ transform: `rotateY(${rotationAngle}deg)` }}
-              >
-                <img
-                  src={product.images[0]?.imageUrl}
-                  alt={product.name}
-                  className="max-h-48 max-w-xs object-contain"
-                />
-              </div>
-
-              {/* Top Controls Overlay */}
-              <div className="absolute top-3 left-3 bg-[#24211E]/80 backdrop-blur-md px-3 py-1 rounded-full text-[11px] text-white flex items-center gap-2">
-                <Lock className="w-3 h-3 text-[#D49A6A]" />
-                <span>Scale Constrained: {product.dimensions.widthCm} cm</span>
-              </div>
-
-              <div className="absolute top-3 right-3 bg-[#2F7D50]/90 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                ✓ Fits Space Comfortably
-              </div>
-            </div>
-
-            {/* Transform Controls Toolbar */}
-            <div className="p-3.5 bg-[#FAF9F7] rounded-[12px] border border-[#E5E0DA] flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRotationAngle((prev) => (prev + 45) % 360)}
-                  className="text-xs gap-1.5"
-                >
-                  <RotateCw className="w-3.5 h-3.5" />
-                  <span>Rotate ({rotationAngle}°)</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSaved(!isSaved)}
-                  className={`text-xs gap-1.5 ${isSaved ? "bg-[#2F7D50]/10 border-[#2F7D50] text-[#2F7D50]" : ""}`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>{isSaved ? "✓ Design Saved" : "Save Room Layout"}</span>
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleAddToCart}
-                  className="text-xs gap-1.5 bg-[#8B5E3C] hover:bg-[#634027]"
-                >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>{isAdded ? "Added to Cart!" : "Add Placed Item to Cart"}</span>
-                </Button>
-              </div>
-            </div>
+            <CameraARViewer
+              product={product}
+              onFallbackToPhotoUpload={() => handleSelectMode('room-photo')}
+              onAddToCart={onAddToCart}
+              onClose={onClose}
+            />
+            <FurnitureControls
+              onSwitchMode={(m) => {
+                if (m === 'room-photo') setActiveStep('room-photo');
+              }}
+            />
           </div>
         )}
       </div>
     </Modal>
   );
 }
+
+export default ARPreviewModal;

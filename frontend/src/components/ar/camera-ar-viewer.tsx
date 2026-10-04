@@ -93,16 +93,13 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
   const glbUrl = product.model3D?.modelUrl || 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
   const usdzUrl = product.model3D?.modelUrl?.replace(/\.glb$/i, '.usdz') || glbUrl;
 
-  // Autostart camera session when mounted if supported
+  // Do not automatically access the camera on mount without explicit user permission.
+  // Cleanup camera stream cleanly on unmount.
   useEffect(() => {
-    if (isSupported && sessionState === 'idle') {
-      startCameraSession();
-    }
-
     return () => {
       stopCameraSession();
     };
-  }, [isSupported]);
+  }, [stopCameraSession]);
 
   // Setup WebGL 3D Overlay Scene for Live Camera Feed
   useEffect(() => {
@@ -357,12 +354,12 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             className="absolute inset-0 z-10 pointer-events-none"
           />
 
-          {/* Top Status & Surface Detection HUD */}
+          {/* Top Status & Surface Detection HUD in FunArray Palette */}
           <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-auto z-20 gap-2">
-            <div className="flex flex-wrap items-center gap-2 bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs shadow-lg">
+            <div className="flex flex-wrap items-center gap-2 bg-[#24211E]/85 backdrop-blur-md px-4 py-2 rounded-[16px] border border-white/10 text-xs shadow-lg">
               <span className={`w-2.5 h-2.5 rounded-full ${
-                surfaceState === 'locked' ? 'bg-emerald-400' :
-                surfaceState === 'detected' ? 'bg-amber-400 animate-pulse' : 'bg-blue-400 animate-ping'
+                surfaceState === 'locked' ? 'bg-[#7BAE8A]' :
+                surfaceState === 'detected' ? 'bg-[#7BAE8A] animate-pulse' : 'bg-[#D49A6A] animate-ping'
               }`} />
               <span className="font-medium text-white">
                 {surfaceState === 'locked' && 'Surface Locked (1:1 Physical Scale)'}
@@ -370,7 +367,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                 {surfaceState === 'searching' && 'Scanning Floor Surface...'}
               </span>
               <span className="text-white/30">|</span>
-              <span className="text-amber-300 font-semibold font-mono text-[11px]">
+              <span className="text-[#D49A6A] font-semibold font-mono text-[11px]">
                 {product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm
               </span>
             </div>
@@ -383,10 +380,10 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                   toggleDepthOcclusion();
                 }}
                 title={isDepthSensingSupported ? 'Toggle Real-World Occlusion' : 'Depth Occlusion (Hardware Fallback)'}
-                className={`px-2.5 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 transition-colors shadow-md ${
+                className={`px-3 py-1.5 rounded-[10px] text-xs font-medium border flex items-center gap-1.5 transition-colors shadow-md ${
                   isDepthOcclusionEnabled
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                    : 'bg-black/60 text-stone-400 border-white/10 hover:bg-black/80'
+                    ? 'bg-[#7BAE8A]/20 text-[#7BAE8A] border-[#7BAE8A]/40 hover:bg-[#7BAE8A]/30'
+                    : 'bg-[#24211E]/80 text-[#9B958E] border-white/10 hover:bg-[#24211E]'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -399,7 +396,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                 <button
                   onClick={handleLaunchWebXR}
                   disabled={isWebXRLoading}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-full text-xs shadow-md transition flex items-center gap-1"
+                  className="px-3.5 py-1.5 bg-[#8B5E3C] hover:bg-[#634027] text-white font-medium rounded-[10px] text-xs shadow-md transition flex items-center gap-1"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>{isWebXRLoading ? 'Opening...' : 'Immersive WebXR'}</span>
@@ -412,7 +409,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                   toggleCameraFacing();
                 }}
                 title="Switch Camera (Front/Rear)"
-                className="p-2 bg-black/70 backdrop-blur-md hover:bg-black/90 rounded-full text-white border border-white/10 transition-colors shadow-md"
+                className="p-2 bg-[#24211E]/80 backdrop-blur-md hover:bg-[#24211E] rounded-[10px] text-white border border-white/10 transition-colors shadow-md"
               >
                 <FlipHorizontal className="w-4 h-4" />
               </button>
@@ -424,7 +421,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                     stopCameraSession();
                     onClose();
                   }}
-                  className="p-2 bg-black/70 backdrop-blur-md hover:bg-black/90 rounded-full text-white border border-white/10 transition-colors shadow-md"
+                  className="p-2 bg-[#24211E]/80 backdrop-blur-md hover:bg-[#24211E] rounded-[10px] text-white border border-white/10 transition-colors shadow-md"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -432,21 +429,21 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
             </div>
           </div>
 
-          {/* Error Banner if placement is rejected (e.g. tilted surface or wall) */}
+          {/* Error Banner if placement is rejected */}
           {placementError && (
             <div className="absolute top-16 inset-x-4 z-30 flex justify-center pointer-events-none animate-bounce">
-              <div className="bg-rose-950/90 text-rose-200 border border-rose-600/80 px-4 py-2 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 backdrop-blur-md">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="bg-[#C84B4B]/95 text-white border border-[#C84B4B] px-4 py-2 rounded-[12px] text-xs font-medium shadow-xl flex items-center gap-2 backdrop-blur-md">
+                <AlertCircle className="w-4 h-4 text-white shrink-0" />
                 <span>{placementError}</span>
               </div>
             </div>
           )}
 
-          {/* Surface Guidance Overlay (before placement) */}
+          {/* Surface Guidance Overlay (before placement) in #7BAE8A */}
           {!placement.isPlaced && (
             <div className="absolute bottom-24 inset-x-4 flex justify-center pointer-events-none z-20">
-              <div className="bg-black/80 px-4 py-2 rounded-full backdrop-blur-md border border-emerald-400/40 text-emerald-200 text-xs font-semibold shadow-xl flex items-center gap-2">
-                <Crosshair className="w-4 h-4 text-emerald-400 animate-pulse" />
+              <div className="bg-[#24211E]/90 px-4 py-2.5 rounded-[16px] backdrop-blur-md border border-[#7BAE8A]/50 text-white text-xs font-medium shadow-xl flex items-center gap-2">
+                <Crosshair className="w-4 h-4 text-[#7BAE8A] animate-pulse" />
                 <span>Move phone to scan floor • Tap when green reticle appears</span>
               </div>
             </div>
@@ -544,13 +541,13 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                       toggleLockPlacement();
                     }}
                     title={placement.isLocked ? 'Unlock to move or rotate' : 'Lock position'}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1 transition ${
+                    className={`px-2.5 py-1.5 rounded-[10px] text-xs font-medium border flex items-center gap-1 transition ${
                       placement.isLocked
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-700'
+                        ? 'bg-[#8B5E3C]/30 text-[#D49A6A] border-[#8B5E3C]'
+                        : 'bg-white/10 text-white border-white/10 hover:bg-white/20'
                     }`}
                   >
-                    {placement.isLocked ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3" />}
+                    {placement.isLocked ? <Lock className="w-3 h-3 text-[#D49A6A]" /> : <Unlock className="w-3 h-3" />}
                     <span>{placement.isLocked ? 'Locked' : 'Lock'}</span>
                   </button>
 
@@ -561,7 +558,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                       deletePlacement();
                     }}
                     title="Remove placed furniture"
-                    className="p-1.5 bg-rose-950/70 hover:bg-rose-900 text-rose-300 rounded-lg text-xs border border-rose-800 transition"
+                    className="p-1.5 hover:bg-[#C84B4B]/20 text-[#9B958E] hover:text-[#C84B4B] rounded-[8px] text-xs transition"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -575,7 +572,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                       e.stopPropagation();
                       resetPlacement();
                     }}
-                    className="text-stone-300 hover:text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1"
+                    className="text-white/80 hover:text-white hover:bg-white/10 text-xs px-2.5 h-8 gap-1 rounded-[10px]"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Reposition</span>
@@ -587,7 +584,7 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
                       handleAddToCart();
                     }}
                     size="sm"
-                    className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white font-semibold text-xs px-4 h-9 shadow-lg gap-1.5"
+                    className="bg-[#8B5E3C] hover:bg-[#634027] text-white font-medium text-xs px-4 h-9 shadow-sm gap-1.5 rounded-[10px] cursor-pointer"
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />
                     <span>{isAddedToCart ? 'Added to Bag!' : `Add to Cart • ${formatPrice(product.basePrice)}`}</span>
@@ -608,56 +605,104 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
         </div>
       )}
 
-      {/* 2. REQUESTING CAMERA PERMISSION */}
-      {sessionState === 'requesting' && (
-        <div className="p-8 text-center space-y-4 max-w-md">
-          <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto animate-pulse">
-            <Camera className="w-8 h-8 text-amber-500" />
+      {/* 2. EXPLICIT CAMERA PERMISSION REQUEST (IDLE STATE) */}
+      {sessionState === 'idle' && (
+        <div className="p-8 text-center space-y-5 max-w-lg bg-white rounded-[16px] border border-[#E5E0DA] shadow-xl m-4">
+          <div className="w-16 h-16 rounded-[16px] bg-[#F3E8DE] border border-[#8B5E3C]/30 flex items-center justify-center mx-auto text-[#8B5E3C] shadow-2xs">
+            <Camera className="w-8 h-8" />
           </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-white">Initializing Surface Detection</h3>
-            <p className="text-xs text-stone-400">
-              Please click <strong>&quot;Allow&quot;</strong> in your browser prompt so FunArray can scan your floor plane and place {product.name} at true scale.
+
+          <div className="space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8B5E3C] bg-[#F3E8DE] px-3 py-1 rounded-full border border-[#8B5E3C]/20 inline-block">
+              Camera Permission Required
+            </span>
+            <h3 className="text-xl font-serif font-medium text-[#24211E]">
+              Allow Camera Access for Live AR
+            </h3>
+            <p className="text-xs text-[#6F6A64] max-w-md mx-auto leading-relaxed">
+              FunArray needs access to your camera to detect floor planes and place <strong>{product.name}</strong> ({product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm) at exact 1:1 true scale in your room.
             </p>
           </div>
-          <div className="p-3 bg-stone-900 rounded-xl border border-stone-800 text-[11px] text-stone-400 flex items-center gap-2 text-left">
-            <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
-            <span>Zero Persistence Guarantee: Camera frames are never recorded or stored on any server.</span>
+
+          {/* Privacy & Security Guarantee */}
+          <div className="p-3 bg-[#FAF9F7] rounded-[12px] border border-[#E5E0DA] text-[11px] text-[#6F6A64] flex items-center gap-2.5 text-left">
+            <ShieldCheck className="w-5 h-5 text-[#2F7D50] shrink-0" />
+            <span>
+              <strong>Zero Persistence Privacy:</strong> Live video is processed purely in your browser memory for spatial positioning and is never saved or transmitted.
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Button
+              onClick={() => startCameraSession()}
+              className="w-full sm:w-auto bg-[#8B5E3C] hover:bg-[#634027] text-white text-xs font-medium h-11 px-6 rounded-[10px] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Allow Camera Access</span>
+            </Button>
+
+            {onFallbackToPhotoUpload && (
+              <Button
+                onClick={onFallbackToPhotoUpload}
+                variant="outline"
+                className="w-full sm:w-auto bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#24211E] text-xs font-medium h-11 px-5 rounded-[10px] border border-[#E5E0DA] transition cursor-pointer"
+              >
+                <UploadCloud className="w-4 h-4 mr-1.5 text-[#8B5E3C]" />
+                <span>Use Room Photo Mode</span>
+              </Button>
+            )}
           </div>
         </div>
       )}
 
-      {/* 3. PERMISSION DENIED STATE & FALLBACK */}
+      {/* 3. REQUESTING CAMERA PERMISSION DIALOG */}
+      {sessionState === 'requesting' && (
+        <div className="p-8 text-center space-y-4 max-w-md bg-white rounded-[16px] border border-[#E5E0DA] shadow-xl m-4">
+          <div className="w-16 h-16 rounded-[16px] bg-[#F3E8DE] border border-[#8B5E3C]/30 flex items-center justify-center mx-auto animate-pulse text-[#8B5E3C]">
+            <Camera className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-serif font-medium text-[#24211E]">Awaiting Camera Permission</h3>
+            <p className="text-xs text-[#6F6A64]">
+              Please click <strong>&quot;Allow&quot;</strong> in your browser prompt so FunArray can scan your floor surface.
+            </p>
+          </div>
+          <div className="p-3 bg-[#FAF9F7] rounded-[10px] border border-[#E5E0DA] text-[11px] text-[#6F6A64] flex items-center gap-2 text-left">
+            <ShieldCheck className="w-4 h-4 text-[#2F7D50] shrink-0" />
+            <span>Camera frames are analyzed locally in RAM and never stored.</span>
+          </div>
+        </div>
+      )}
+
+      {/* 4. PERMISSION DENIED STATE & FALLBACK */}
       {sessionState === 'denied' && (
-        <div className="p-8 text-center space-y-5 max-w-md">
-          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-400">
+        <div className="p-8 text-center space-y-5 max-w-md bg-white rounded-[16px] border border-[#E5E0DA] shadow-xl m-4">
+          <div className="w-14 h-14 rounded-full bg-[#C84B4B]/10 border border-[#C84B4B]/20 flex items-center justify-center mx-auto text-[#C84B4B]">
             <AlertCircle className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
-            <h3 className="text-base font-semibold text-white">Camera Access Denied</h3>
-            <p className="text-xs text-stone-400 leading-relaxed">
-              Camera permissions were blocked. You can allow camera access in your browser site settings or switch to our 2D/3D Room Photo Upload mode.
+            <h3 className="text-base font-serif font-medium text-[#24211E]">Camera Access Denied</h3>
+            <p className="text-xs text-[#6F6A64] leading-relaxed">
+              Camera access was denied or blocked. You can grant permission in your browser site settings or switch to our 3D Room Photo Upload mode.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
             <Button
               onClick={() => startCameraSession()}
-              variant="outline"
-              size="sm"
-              className="w-full sm:w-auto text-xs border-stone-700 hover:bg-stone-800 text-white"
+              className="w-full sm:w-auto text-xs bg-[#8B5E3C] hover:bg-[#634027] text-white rounded-[10px] h-10 px-4"
             >
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Try Camera Again
+              Try Again
             </Button>
 
             {onFallbackToPhotoUpload && (
               <Button
                 onClick={onFallbackToPhotoUpload}
-                size="sm"
-                className="w-full sm:w-auto text-xs bg-[#8B5E3C] hover:bg-[#A0704C] text-white"
+                variant="outline"
+                className="w-full sm:w-auto text-xs bg-[#F4F2EF] hover:bg-[#F3E8DE] text-[#24211E] rounded-[10px] h-10 px-4 border border-[#E5E0DA]"
               >
-                <UploadCloud className="w-3.5 h-3.5 mr-1.5" />
+                <UploadCloud className="w-3.5 h-3.5 mr-1.5 text-[#8B5E3C]" />
                 Use Room Photo Mode
               </Button>
             )}
@@ -665,61 +710,30 @@ export const CameraARViewer: React.FC<CameraARViewerProps> = ({
         </div>
       )}
 
-      {/* 4. UNSUPPORTED / DESKTOP FALLBACK STATE */}
-      {(sessionState === 'unsupported' || sessionState === 'idle') && (
-        <div className="p-8 text-center space-y-6 max-w-lg">
-          <div className="w-16 h-16 rounded-2xl bg-[#8B5E3C]/10 border border-[#8B5E3C]/30 flex items-center justify-center mx-auto text-[#D49A6A]">
+      {/* 5. UNSUPPORTED HARDWARE STATE */}
+      {sessionState === 'unsupported' && (
+        <div className="p-8 text-center space-y-6 max-w-lg bg-white rounded-[16px] border border-[#E5E0DA] shadow-xl m-4">
+          <div className="w-16 h-16 rounded-[16px] bg-[#FAF9F7] border border-[#E5E0DA] flex items-center justify-center mx-auto text-[#8B5E3C]">
             <Smartphone className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <Badge variant="ar" className="border-amber-500/40 text-amber-400 text-[11px]">
-              Spatial Surface Detection AR
-            </Badge>
-            <h3 className="text-xl font-serif font-medium text-white">
-              Place {product.name} on Your Floor
+            <h3 className="text-xl font-serif font-medium text-[#24211E]">
+              Camera Not Supported on This Device
             </h3>
-            <p className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
-              Scan your space to detect horizontal planes and view this piece with exact physical dimensions (<strong>{product.dimensions.widthCm}×{product.dimensions.heightCm}×{product.dimensions.depthCm} cm</strong>).
+            <p className="text-xs text-[#6F6A64] max-w-md mx-auto leading-relaxed">
+              Live camera access is not available on this browser. You can still preview {product.name} with perspective floor matching using our Room Photo mode.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <Button
-              onClick={() => startCameraSession()}
-              className="bg-[#8B5E3C] hover:bg-[#A0704C] text-white text-xs h-12 flex items-center justify-center gap-2"
-            >
-              <Camera className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-semibold">Launch Surface AR</div>
-                <div className="text-[10px] text-amber-200">Live Camera Reticle</div>
-              </div>
-            </Button>
-
-            {/* Native Mobile WebXR / QuickLook */}
-            <a
-              href={usdzUrl}
-              rel="ar"
-              className="inline-flex items-center justify-center gap-2 h-12 px-4 rounded-lg bg-stone-800 hover:bg-stone-700 text-white text-xs border border-stone-700 transition"
-            >
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <div className="text-left">
-                <div className="font-semibold">Native iOS / QuickLook</div>
-                <div className="text-[10px] text-stone-400">Open in USDZ Viewer</div>
-              </div>
-            </a>
-          </div>
-
           {onFallbackToPhotoUpload && (
-            <div className="pt-2 border-t border-stone-800 flex items-center justify-between text-xs text-stone-400">
-              <span>On a desktop without a webcam?</span>
-              <button
-                onClick={onFallbackToPhotoUpload}
-                className="text-amber-400 hover:text-amber-300 font-semibold underline cursor-pointer"
-              >
-                Upload Room Photo Mode →
-              </button>
-            </div>
+            <Button
+              onClick={onFallbackToPhotoUpload}
+              className="bg-[#8B5E3C] hover:bg-[#634027] text-white text-xs font-medium h-11 px-6 rounded-[10px] shadow-sm flex items-center justify-center gap-2 mx-auto cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>Launch Room Photo Mode</span>
+            </Button>
           )}
         </div>
       )}

@@ -1,3 +1,9 @@
+export interface FurnitureDimensions {
+  widthCm: number;
+  heightCm: number;
+  depthCm: number;
+}
+
 export interface PlacedFurniture {
   id: string;
   productId: string;
@@ -9,11 +15,7 @@ export interface PlacedFurniture {
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
-  dimensions: {
-    widthCm: number;
-    heightCm: number;
-    depthCm: number;
-  };
+  dimensions: FurnitureDimensions;
   color?: string;
   material?: string;
   isLocked?: boolean;

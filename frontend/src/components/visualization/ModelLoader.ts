@@ -579,20 +579,36 @@ export function createPhotorealisticProceduralFurniture(item: PlacedFurniture): 
       meshAssembly.add(leg);
     });
   } else {
-    // CHAIR / ARMCHAIR: Padded Seat + Curved Back + Slanted Legs
+    // CHAIR / ARMCHAIR: Padded Seat + Ergonomic Armrests + Curved Back + Slanted Legs
     const seatH = h * 0.44;
-    const cushionGeo = new THREE.BoxGeometry(w * 0.88, 0.09, d * 0.82);
+    const armW = w * 0.09;
+    const armH = h * 0.22;
+    const seatW = w - armW * 2;
+
+    const cushionGeo = new THREE.BoxGeometry(seatW, 0.09, d * 0.82);
     const seat = new THREE.Mesh(cushionGeo, cushionMat);
-    seat.position.y = seatH;
+    seat.position.set(0, seatH, 0.02);
     seat.castShadow = true;
     seat.receiveShadow = true;
     meshAssembly.add(seat);
 
+    // Left & Right Armrests
+    const armGeo = new THREE.BoxGeometry(armW, armH, d * 0.88);
+    const leftArm = new THREE.Mesh(armGeo, fabricMat);
+    leftArm.position.set(-w / 2 + armW / 2, seatH + armH / 2 - 0.02, 0);
+    leftArm.castShadow = true;
+    meshAssembly.add(leftArm);
+
+    const rightArm = new THREE.Mesh(armGeo, fabricMat);
+    rightArm.position.set(w / 2 - armW / 2, seatH + armH / 2 - 0.02, 0);
+    rightArm.castShadow = true;
+    meshAssembly.add(rightArm);
+
     // Curved Ergonomic Backrest
     const backH = h - seatH;
-    const backGeo = new THREE.BoxGeometry(w * 0.84, backH, 0.08);
+    const backGeo = new THREE.BoxGeometry(w * 0.88, backH, 0.08);
     const backMesh = new THREE.Mesh(backGeo, cushionMat);
-    backMesh.position.set(0, seatH + backH / 2, -d * 0.36);
+    backMesh.position.set(0, seatH + backH / 2, -d / 2 + 0.04);
     backMesh.rotation.x = 0.08;
     backMesh.castShadow = true;
     meshAssembly.add(backMesh);
@@ -600,10 +616,10 @@ export function createPhotorealisticProceduralFurniture(item: PlacedFurniture): 
     // Tapered Wooden Legs with subtle outward splay
     const legGeo = new THREE.CylinderGeometry(0.02, 0.012, seatH, 16);
     const legOffsets = [
-      [-w * 0.36, -d * 0.32, -0.05, -0.05],
-      [w * 0.36, -d * 0.32, 0.05, -0.05],
-      [-w * 0.36, d * 0.32, -0.05, 0.05],
-      [w * 0.36, d * 0.32, 0.05, 0.05],
+      [-w * 0.38, -d * 0.36, -0.05, -0.05],
+      [w * 0.38, -d * 0.36, 0.05, -0.05],
+      [-w * 0.38, d * 0.36, -0.05, 0.05],
+      [w * 0.38, d * 0.36, 0.05, 0.05],
     ];
     legOffsets.forEach(([ox, oz, tiltZ, tiltX]) => {
       const leg = new THREE.Mesh(legGeo, darkWoodMat);
